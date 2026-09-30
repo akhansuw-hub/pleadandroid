@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- res/drawable-nodpi is the whole iOS asset catalog, imported 1:1 by tools/android/import_assets.sh for the
+         feature waves; unused / duplicate images mirror Assets.xcassets (e.g. three identical courtroom images). -->
+    <issue id="UnusedResources">
+        <ignore path="src/main/res/drawable-nodpi/**" />
+    </issue>
+    <issue id="IconDuplicates">
+        <ignore path="src/main/res/drawable-nodpi/**" />
+    </issue>
+    <!-- The adaptive icon must stay in mipmap-anydpi-v26: AGP 8.13 drops it from an unversioned anydpi folder. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+</lint>

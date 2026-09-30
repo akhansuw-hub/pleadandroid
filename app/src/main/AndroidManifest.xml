@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plead for Android. Shared file (PORT.md §5): add entries, never rename or remove one. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:name=".app.PleadApplication"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Plead"
+        tools:replace="android:allowBackup,android:dataExtractionRules,android:fullBackupContent"
+        tools:targetApi="35">
+
+        <activity
+            android:name=".app.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.Plead">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Auth redirect (magic link / OAuth), shared with iOS: plead://login-callback -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="plead" android:host="login-callback" />
+            </intent-filter>
+
+            <!-- plead://… (widgets, pushes, join codes, case links; amendments ah, o) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="plead" />
+            </intent-filter>
+
+            <!-- Couple invites on the website (amendment ap) + the legacy hosts. Verification needs
+                 /.well-known/assetlinks.json on each host (see docs/android-port). -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="plead-drab.vercel.app" />
+                <data android:host="plead.app" />
+                <data android:host="www.plead.app" />
+                <data android:pathPrefix="/join/" />
+            </intent-filter>
+        </activity>
+
+        <!-- FCM (amendment az). Filled in by wave 3f; inert without google-services.json. -->
+        <service
+            android:name=".push.PleadMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Glance widget (PleadWidgets port). Filled in by wave 3f. -->
+        <receiver
+            android:name=".widgets.PleadWidgetReceiver"
+            android:exported="false"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/plead_widget_info" />
+        </receiver>
+    </application>
+</manifest>

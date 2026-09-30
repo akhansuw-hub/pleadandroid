@@ -1,0 +1,10 @@
+# Copy to local.properties (gitignored) and fill in real values. Same keys as ArgueWin/Resources/Config.xcconfig.
+# Values that still contain YOUR_ / YOUR- are treated as unset (AppConfig.kt), exactly as on iOS.
+sdk.dir=/Users/arifkhan/Library/Android/sdk
+SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
+SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+# RevenueCat Google Play public SDK key (goog_...), not the Apple appl_ key.
+REVENUECAT_API_KEY=goog_YOUR_REVENUECAT_PUBLIC_KEY
+APPSFLYER_DEV_KEY=YOUR_APPSFLYER_DEV_KEY
+# Web (server) OAuth client id used by Credential Manager for Sign in with Google.
+GOOGLE_WEB_CLIENT_ID=YOUR_GOOGLE_OAUTH_WEB_CLIENT_ID
