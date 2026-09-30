@@ -685,7 +685,7 @@ private fun CourtStage(
 
 /** The painted plaque, now free: a small engraved gold seal so it doesn't read as blank. */
 @Composable
-private fun PlaqueSeal(z: CourtroomZones) {
+internal fun PlaqueSeal(z: CourtroomZones) {
     val plaque = z.rect(CourtroomZones.plaque)
     ScalesGlyph(
         color = PleadColor.mahogany.copy(alpha = 0.55f), size = max(12f, plaque.height * 0.55f).dp,
