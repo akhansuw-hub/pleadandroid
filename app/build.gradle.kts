@@ -154,6 +154,9 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     // Wave 2a: canned Supabase HTTP responses for the service tests (iOS StubURLProtocol).
     testImplementation(libs.ktor.client.mock)
+    // Wave 2b: Robolectric renders design-system composables to PNG for review (ComponentGallerySnapshotTests).
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
