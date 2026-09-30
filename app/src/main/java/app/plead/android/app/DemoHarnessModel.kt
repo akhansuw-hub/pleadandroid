@@ -122,7 +122,14 @@ fun DemoHarness.apply(to: AppModel, defaults: UserDefaults = UserDefaults.standa
         DemoHarness.Sheet.notifications -> model.router.sheet = AppSheet.settings
         null -> Unit
     }
-    // `AWLiveActivity summons|verdict|verdictReady`: a fixed demo court session (`auto` runs the planner).
+    applyCourtSessionDemo(model)
+}
+
+/**
+ * `AWLiveActivity summons|verdict|verdictReady`: a fixed demo court session (`auto` runs the planner). A no-op until
+ * the presenter is attached, so PleadApplication calls it again right after setting `courtSession`.
+ */
+fun DemoHarness.applyCourtSessionDemo(model: AppModel) {
     liveActivity?.takeIf { it != "auto" }?.let { mode ->
         model.courtSession?.let {
             it.isForeground = true

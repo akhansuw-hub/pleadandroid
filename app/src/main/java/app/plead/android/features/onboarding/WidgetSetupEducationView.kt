@@ -89,6 +89,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
 import app.plead.android.designsystem.Color as HexColor
+import app.plead.android.widgets.PixelJudgeGlyph
+import app.plead.android.widgets.PixelJudgeGlyphCanvas
+import app.plead.android.widgets.PleadWidgetPalette
 
 object WidgetsCopy {
     /** iOS "Widgets & Live Activities". */
@@ -394,7 +397,7 @@ private fun HomeWidgetMock(now: Instant, modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterVertically),
         ) {
-            PixelJudgeGlyph(PixelJudgeGlyph.Kind.bench, size = 70.dp)
+            PixelJudgeGlyphCanvas(PixelJudgeGlyph.Kind.bench, size = 70.dp)
             Box(Modifier.fillMaxWidth().padding(horizontal = 6.dp).height(1.5.dp).background(PleadWidgetPalette.romanceBlush))
             val p = snapshot.primary
             if (p != null) {
@@ -410,7 +413,7 @@ private fun HomeWidgetMock(now: Instant, modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PixelJudgeGlyph(PixelJudgeGlyph.Kind.gavel, size = 12.dp)
+                    PixelJudgeGlyphCanvas(PixelJudgeGlyph.Kind.gavel, size = 12.dp)
                     Text(
                         WidgetSnapshot.statusChip(p.state),
                         style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold),
@@ -443,7 +446,7 @@ fun OnboardingActivityBanner(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PixelJudgeGlyph(PixelJudgeGlyph.Kind.judge, size = 56.dp)
+            PixelJudgeGlyphCanvas(PixelJudgeGlyph.Kind.judge, size = 56.dp)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     state.headline.uppercase(),

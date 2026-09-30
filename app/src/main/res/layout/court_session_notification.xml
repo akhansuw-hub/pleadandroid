@@ -3,6 +3,7 @@
      burgundy accent bar, pixel judge, deep-wine headline (two lines max), "Case #021", cocoa detail (one line), and the
      countdown ("Plea due in / 23:59:10") or the pixel gavel. Filled from push/CourtSessionNotification.kt. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/court_session_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/court_session_card"

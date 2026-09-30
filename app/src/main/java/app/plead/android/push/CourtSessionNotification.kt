@@ -368,11 +368,15 @@ class CourtSessionNotification(
             return label to deadline
         }
 
-        /** The banner (Swift `PleadActivityLockScreenView`) as RemoteViews; also rendered by the preview harness. */
-        fun contentView(context: Context, attributes: PleadCaseActivityAttributes, state: CourtSessionState, now: Instant): RemoteViews {
+        /**
+         * The banner (Swift `PleadActivityLockScreenView`) as RemoteViews; also rendered by the preview harness.
+         * `compact` is the collapsed shade row (Android caps a collapsed custom view at ~48 dp): a smaller judge, the
+         * headline on one line and the timer alone, without the case / detail lines or the countdown label.
+         */
+        fun contentView(context: Context, attributes: PleadCaseActivityAttributes, state: CourtSessionState, now: Instant, compact: Boolean = false): RemoteViews {
             val density = context.resources.displayMetrics.density.takeIf { it > 0f } ?: 1f
             return RemoteViews(context.packageName, R.layout.court_session_notification).apply {
-                val judge = PleadPixelSprites.render(context, PixelJudgeGlyph.Kind.judge, 48.dp)
+                val judge = PleadPixelSprites.render(context, PixelJudgeGlyph.Kind.judge, if (compact) 30.dp else 48.dp)
                 setImageViewBitmap(R.id.court_session_judge, judge.bitmap)
                 setTextViewText(R.id.court_session_headline, state.headline.uppercase(Locale.getDefault()))
                 if (attributes.caseNumber > 0) {
@@ -400,6 +404,14 @@ class CourtSessionNotification(
                     setViewVisibility(R.id.court_session_gavel, View.VISIBLE)
                 }
                 setContentDescription(R.id.court_session_headline, PleadActivityCopy.accessibilityLabel(attributes.caseNumber, state, now))
+                if (compact) {
+                    val px = { dp: Float -> (dp * density).toInt() }
+                    setViewPadding(R.id.court_session_root, px(16f), px(4f), px(12f), px(4f))
+                    setInt(R.id.court_session_headline, "setMaxLines", 1)
+                    setViewVisibility(R.id.court_session_case, View.GONE)
+                    setViewVisibility(R.id.court_session_detail, View.GONE)
+                    setViewVisibility(R.id.court_session_countdown_label, View.GONE)
+                }
             }
         }
 
@@ -418,6 +430,7 @@ class CourtSessionNotification(
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val view = contentView(context, attributes, state, now)
+            val collapsed = contentView(context, attributes, state, now, compact = true)
             val countdown = countdown(state, now)
             val builder = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.ic_stat_plead)
@@ -427,8 +440,9 @@ class CourtSessionNotification(
                 .setSubText(if (attributes.caseNumber > 0) "Case #${number(attributes.caseNumber)}" else null)
                 .setTicker(PleadActivityCopy.accessibilityLabel(attributes.caseNumber, state, now))
                 .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                .setCustomContentView(view)
+                .setCustomContentView(collapsed)
                 .setCustomBigContentView(view)
+                .setCustomHeadsUpContentView(view)
                 .setContentIntent(tap)
                 .setOngoing(ongoing)
                 .setOnlyAlertOnce(true)

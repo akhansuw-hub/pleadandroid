@@ -45,6 +45,9 @@ fun MediumWidgetView(snapshot: WidgetSnapshot, now: Instant = Instant.now()) {
 private fun MediumColumn(snapshot: WidgetSnapshot, now: Instant, modifier: GlanceModifier) {
     val context = LocalContext.current
     val cap = PleadWidgetFont.xLargeScale
+    // Short cells (iPhone SE's 148 pt, small launcher rows): tighter gaps and pill so the pill is never clipped.
+    val compact = LocalSize.current.height.value - 2 * PleadStatusWidget.contentPadding.value < MediumWidgetView.compactHeight
+    val gap = if (compact) 0.dp else 2.dp
     Column(modifier = modifier, horizontalAlignment = Alignment.Start) {
         val p = snapshot.primary
         if (p != null) {
@@ -53,13 +56,13 @@ private fun MediumColumn(snapshot: WidgetSnapshot, now: Instant, modifier: Glanc
                 style = PleadWidgetFont.serif(context, WidgetTextStyle.title3, PleadWidgetPalette.deepWine, cap),
                 maxLines = 1,
             )
-            Spacer(GlanceModifier.height(2.dp))
+            Spacer(GlanceModifier.height(gap))
             Text(
                 text = p.caseTitle,
                 style = PleadWidgetFont.ui(context, WidgetTextStyle.subheadline, WidgetFontWeight.semibold, PleadWidgetPalette.darkCocoa, cap),
                 maxLines = 1,
             )
-            Spacer(GlanceModifier.height(2.dp))
+            Spacer(GlanceModifier.height(gap))
             if (WidgetSnapshot.activeDeadline(p, now) != null) {
                 PleadDeadlineText(primary = p, now = now, color = PleadWidgetPalette.mutedCocoa, maxScale = cap)
             } else {
@@ -69,24 +72,24 @@ private fun MediumColumn(snapshot: WidgetSnapshot, now: Instant, modifier: Glanc
                     maxLines = 1,
                 )
             }
-            Spacer(GlanceModifier.defaultWeight().height(4.dp))
+            Spacer(GlanceModifier.defaultWeight().height(if (compact) 0.dp else 4.dp))
             PleadStatusChip(text = WidgetSnapshot.headline(p, WidgetPrivacyMode.detailed), maxScale = cap)
-            Spacer(GlanceModifier.height(5.dp))
-            PleadActionPill(title = p.nextAction.title, maxScale = cap)
+            Spacer(GlanceModifier.height(if (compact) 3.dp else 5.dp))
+            PleadActionPill(title = p.nextAction.title, maxScale = cap, compact = compact)
         } else {
             Text(
                 text = WidgetSnapshot.headline(null as WidgetCase?),
                 style = PleadWidgetFont.serif(context, WidgetTextStyle.title3, PleadWidgetPalette.deepWine, cap),
                 maxLines = 1,
             )
-            Spacer(GlanceModifier.height(2.dp))
+            Spacer(GlanceModifier.height(gap))
             Text(
                 text = WidgetSnapshot.detailLine(null, WidgetPrivacyMode.generic, snapshot.activeCaseCount),
                 style = PleadWidgetFont.ui(context, WidgetTextStyle.subheadline, WidgetFontWeight.semibold, PleadWidgetPalette.mutedCocoa, cap),
                 maxLines = 2,
             )
-            Spacer(GlanceModifier.defaultWeight().height(4.dp))
-            PleadActionPill(title = WidgetAction.openApp.title, maxScale = cap)
+            Spacer(GlanceModifier.defaultWeight().height(if (compact) 0.dp else 4.dp))
+            PleadActionPill(title = WidgetAction.openApp.title, maxScale = cap, compact = compact)
         }
     }
 }
@@ -97,4 +100,7 @@ object MediumWidgetView {
      * margins, vs ~330 pt on 6.3" and wider). Same threshold in dp.
      */
     const val narrowWidth: Float = 320f
+
+    /** Content height (dp) below which the column tightens its gaps and pill (Roboto's line boxes are taller than SF's). */
+    const val compactHeight: Float = 130f
 }

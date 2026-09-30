@@ -11,11 +11,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import androidx.core.graphics.toColorInt
 import app.plead.android.designsystem.PleadTheme
 import app.plead.android.services.PushService
+import app.plead.android.widgets.WidgetPreviewOverlay
 import java.lang.ref.WeakReference
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellableContinuation
@@ -53,7 +55,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PleadTheme {
-                RootScreen(model)
+                Box {
+                    RootScreen(model)
+                    // DEBUG `AWWidgetPreview`: renders the real widgets / court-session notification over the app.
+                    WidgetPreviewOverlay()
+                }
             }
         }
     }

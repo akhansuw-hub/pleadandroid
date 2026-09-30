@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceModifier
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
@@ -44,10 +45,24 @@ fun AccessoryRectangularView(snapshot: WidgetSnapshot, now: Instant = Instant.no
             Spacer(GlanceModifier.width(6.dp))
         }
         Column(modifier = GlanceModifier.defaultWeight()) {
+            val headline = WidgetSnapshot.headline(snapshot.primary, snapshot.privacyMode).uppercase(Locale.getDefault())
+            val headlineStyle = PleadWidgetFont.ui(context, WidgetTextStyle.subheadline, WidgetFontWeight.heavy, PleadWidgetPalette.courtBurgundy)
+            val maxLines = if (headlineOnly) 3 else 2
+            // iOS `.lineLimit(2).minimumScaleFactor(0.6)`: shrink so whole words fit the lines, leaving room for the
+            // second line(s) (caption lines, ~16 dp each; two with detailed previews).
+            val size = LocalSize.current
+            val textWidth = size.width.value - 16f - if (headlineOnly) 0f else 40f * PleadPixelSprites.art(PixelJudgeGlyph.Kind.judge).aspect + 6f
+            val reserve = when {
+                headlineOnly -> 0f
+                detailed && snapshot.primary != null && WidgetSnapshot.activeDeadline(snapshot.primary, now) != null -> 33f
+                else -> 17f
+            }
             Text(
-                text = WidgetSnapshot.headline(snapshot.primary, snapshot.privacyMode).uppercase(Locale.getDefault()),
-                style = PleadWidgetFont.ui(context, WidgetTextStyle.subheadline, WidgetFontWeight.heavy, PleadWidgetPalette.courtBurgundy),
-                maxLines = if (headlineOnly) 3 else 2,
+                text = headline,
+                style = headlineStyle.copy(
+                    fontSize = WidgetTextFit.fittedLines(context, headline, headlineStyle.fontSize!!, textWidth, maxLines, 0.6f, size.height.value - 12f - reserve),
+                ),
+                maxLines = maxLines,
             )
             if (!headlineOnly) {
                 Spacer(GlanceModifier.height(1.dp))
@@ -72,9 +87,13 @@ private fun SecondLine(snapshot: WidgetSnapshot, now: Instant, detailed: Boolean
     } else if (WidgetSnapshot.activeDeadline(p, now) != null) {
         PleadDeadlineText(primary = p, now = now, color = bodyColor, style = WidgetTextStyle.caption)
     } else {
+        val line = WidgetSnapshot.detailLine(p, WidgetPrivacyMode.generic, snapshot.activeCaseCount)
+        val style = PleadWidgetFont.ui(context, WidgetTextStyle.caption, WidgetFontWeight.semibold, bodyColor)
+        // iOS `.minimumScaleFactor(0.8)`.
+        val width = LocalSize.current.width.value - 16f - 40f * PleadPixelSprites.art(PixelJudgeGlyph.Kind.judge).aspect - 6f
         Text(
-            text = WidgetSnapshot.detailLine(p, WidgetPrivacyMode.generic, snapshot.activeCaseCount),
-            style = PleadWidgetFont.ui(context, WidgetTextStyle.caption, WidgetFontWeight.semibold, bodyColor),
+            text = line,
+            style = style.copy(fontSize = WidgetTextFit.fitted(context, line, style.fontSize!!, width, 0.8f, serifBold = false)),
             maxLines = 1,
         )
     }

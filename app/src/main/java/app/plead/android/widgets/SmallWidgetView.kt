@@ -42,10 +42,13 @@ fun SmallWidgetView(snapshot: WidgetSnapshot, now: Instant = Instant.now()) {
         }
         Spacer(GlanceModifier.height(5.dp))
         val p = snapshot.primary
+        // iOS `.minimumScaleFactor(0.75)` on the title line.
+        val titleWidth = LocalSize.current.width.value - 2 * PleadStatusWidget.contentPadding.value
         if (p != null) {
+            val titleStyle = PleadWidgetFont.serif(context, WidgetTextStyle.subheadline, PleadWidgetPalette.deepWine, cap)
             Text(
                 text = p.caseTitle,
-                style = PleadWidgetFont.serif(context, WidgetTextStyle.subheadline, PleadWidgetPalette.deepWine, cap),
+                style = titleStyle.copy(fontSize = WidgetTextFit.fitted(context, p.caseTitle, titleStyle.fontSize!!, titleWidth, 0.75f)),
                 maxLines = 1,
             )
             Spacer(GlanceModifier.height(5.dp))

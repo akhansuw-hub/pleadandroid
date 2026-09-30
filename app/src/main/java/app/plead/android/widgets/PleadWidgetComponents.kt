@@ -161,11 +161,12 @@ fun PleadStatusChip(
 
 /** Burgundy next-action pill ("Enter plea ›"). Decorative: the whole widget is the tap target. */
 @Composable
-fun PleadActionPill(title: String, maxScale: Float? = null, modifier: GlanceModifier = GlanceModifier) {
+fun PleadActionPill(title: String, maxScale: Float? = null, modifier: GlanceModifier = GlanceModifier, compact: Boolean = false) {
     val context = LocalContext.current
     Row(
         modifier = modifier.fillMaxWidth().background(ImageProvider(R.drawable.widget_capsule_burgundy))
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            // `compact`: short widgets (Roboto's taller line boxes than SF would otherwise clip the pill).
+            .padding(horizontal = 12.dp, vertical = if (compact) 4.dp else 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(

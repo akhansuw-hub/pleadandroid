@@ -80,6 +80,8 @@ import app.plead.android.services.NotificationStatus
 import app.plead.android.services.PermissionCTA
 import app.plead.android.services.TrackingPermissionService
 import app.plead.android.services.TrackingStatus
+import app.plead.android.widgets.PixelJudgeGlyph
+import app.plead.android.widgets.PixelJudgeGlyphCanvas
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -378,7 +380,7 @@ private fun JudgePeek(modifier: Modifier = Modifier) {
             .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
-        PixelJudgeGlyph(PixelJudgeGlyph.Kind.judge, size = PermissionScreenTokens.judgePeekSize)
+        PixelJudgeGlyphCanvas(PixelJudgeGlyph.Kind.judge, size = PermissionScreenTokens.judgePeekSize)
     }
 }
 
@@ -542,7 +544,7 @@ fun PrivacyLockHero(modifier: Modifier = Modifier) {
                 .border(t.lockStroke, OnboardingPalette.burgundy, bodyShape),
             contentAlignment = Alignment.Center,
         ) {
-            PixelJudgeGlyph(PixelJudgeGlyph.Kind.heart, size = t.lockHeart)
+            PixelJudgeGlyphCanvas(PixelJudgeGlyph.Kind.heart, size = t.lockHeart)
         }
     }
 }

@@ -4,13 +4,14 @@
 package app.plead.android.app
 
 import android.app.Application
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.provider.Settings
+import app.plead.android.push.CourtSessionNotification
 import app.plead.android.services.Attribution
 import app.plead.android.services.PushCategory
+import app.plead.android.widgets.PleadWidgets
 
 class PleadApplication : Application() {
     /** The process's AppModel, built on first use (after MainActivity has read the launch flags). */
@@ -20,6 +21,8 @@ class PleadApplication : Application() {
         super.onCreate()
         instance = this
         registerNotificationChannels(this)
+        // The medium and 1x1 glance receivers join WidgetCenter.receivers (wave 3f).
+        PleadWidgets.install()
     }
 
     /**
@@ -35,6 +38,9 @@ class PleadApplication : Application() {
         val made = if (demo) DemoHarness.model() else AppModel.live()
         // Demo runs skip the cold open unless `AWColdOpen full|sting` asks for it.
         made.coldOpen.launch(forced = DemoHarness.coldOpen, demo = demo, reduceMotion = systemReduceMotion(this))
+        // The Live Activity's Android replacement: the ongoing "court in session" notification (wave 3f).
+        made.courtSession = CourtSessionNotification.shared
+        if (demo) DemoHarness.applyCourtSessionDemo(made)
         model = made
         return made
     }
@@ -80,10 +86,10 @@ class PleadApplication : Application() {
                 } else {
                     NotificationManager.IMPORTANCE_HIGH
                 }
-                NotificationChannel(category.rawValue, channelName(category), importance).apply {
-                    // Lock-screen copy stays generic unless the user opted in (amendment o).
-                    lockscreenVisibility = Notification.VISIBILITY_PRIVATE
-                }
+                // No channel-level lockscreenVisibility: a channel override would force redaction, so "Show case
+                // details on Lock Screen" could never take effect. Each notification sets its own visibility
+                // (PushNotifications: private with a generic public version unless the user opted in, amendment o).
+                NotificationChannel(category.rawValue, channelName(category), importance)
             }
             manager.createNotificationChannels(channels)
         }

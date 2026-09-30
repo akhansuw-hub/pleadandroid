@@ -78,7 +78,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalDensity
@@ -87,14 +86,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.plead.android.app.AppModel
-import app.plead.android.app.DemoHarness
 import app.plead.android.designsystem.accessibilityReduceMotion
-import app.plead.android.services.Analytics
-import app.plead.android.services.UserDefaults
-import com.google.android.play.core.review.ReviewManagerFactory
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import app.plead.android.push.rememberRequestReview
 import app.plead.android.R
 import app.plead.android.designsystem.Color
 import app.plead.android.designsystem.PleadSpacing
@@ -456,8 +449,9 @@ fun OnboardingContainer(app: AppModel, modifier: Modifier = Modifier) {
     val model = app.onboardingModel
     val reduceMotion = accessibilityReduceMotion()
     val density = LocalDensity.current
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    // Amendment al: the store's own rating prompt, once per install, after the mock trial is watched to the end
+    // (Google Play In-App Review where iOS calls `requestReview`; `AWNoReviewPrompt YES` never asks).
+    val requestReview = rememberRequestReview()
     val step = model.step
     // Bumped on every screen entry; each reveal fires once per value.
     var entry by remember { mutableIntStateOf(0) }
@@ -503,7 +497,7 @@ fun OnboardingContainer(app: AppModel, modifier: Modifier = Modifier) {
                         },
                     ),
                 ) {
-                    OnboardingScreen(app, model, page) { askForRatingOnce(context, scope) }
+                    OnboardingScreen(app, model, page) { requestReview() }
                 }
             }
         }
@@ -586,32 +580,4 @@ private fun OnboardingTopBar(model: OnboardingModel, step: OnboardingStep, modif
         // Mirror the chevron so the bar is optically centred.
         Spacer(Modifier.size(44.dp))
     }
-}
-
-/**
- * Amendment al: the store's own rating prompt, once per install, after the mock trial is watched to the end
- * (Google Play In-App Review, where iOS calls `requestReview`).
- */
-private fun askForRatingOnce(context: android.content.Context, scope: CoroutineScope) {
-    val d = UserDefaults.standard
-    if (d.bool(OnboardingContainer.ratingPromptRequestedKey) || DemoHarness.noReviewPrompt) return
-    d.set(true, OnboardingContainer.ratingPromptRequestedKey)
-    Analytics.track("rating_prompt_requested", mapOf("after" to "mock_trial"))
-    val activity = context.findActivity() ?: return
-    // Let the next screen settle first so the prompt doesn't land mid-transition.
-    scope.launch {
-        delay(800)
-        runCatching {
-            val manager = ReviewManagerFactory.create(activity)
-            manager.requestReviewFlow().addOnCompleteListener { request ->
-                if (request.isSuccessful) manager.launchReviewFlow(activity, request.result)
-            }
-        }
-    }
-}
-
-private tailrec fun android.content.Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is android.content.ContextWrapper -> baseContext.findActivity()
-    else -> null
 }
