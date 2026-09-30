@@ -24,8 +24,10 @@ class ComponentsComposeTests {
         var taps = 0
         rule.setContent {
             PleadTheme {
-                PrimaryButton("Summon your partner") { taps++ }
-                PrimaryButton("Saving", isLoading = true) { taps += 100 }
+                androidx.compose.foundation.layout.Column {
+                    PrimaryButton("Summon your partner") { taps++ }
+                    PrimaryButton("Saving", isLoading = true) { taps += 100 }
+                }
             }
         }
         rule.onNodeWithContentDescription("Summon your partner").performClick()

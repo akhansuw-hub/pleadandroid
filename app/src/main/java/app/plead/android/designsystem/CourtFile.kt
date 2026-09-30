@@ -293,12 +293,13 @@ fun CaseFileCard(
                 Modifier
                     .fillMaxWidth()
                     .caseFilePressStyle(onClick = onOpen, onClickLabel = "Opens the case")
+                    // The tag sits outside `clearAndSetSemantics`, which would otherwise clear it.
+                    .testTag("casefile.$number")
                     .clearAndSetSemantics {
                         contentDescription = summaryText
                         role = androidx.compose.ui.semantics.Role.Button
                         onClick(label = "Opens the case") { onOpen(); true }
                     }
-                    .testTag("casefile.$number")
                     .padding(
                         start = PleadSpacing.l + if (urgent) 4.dp else 0.dp,
                         end = PleadSpacing.l,

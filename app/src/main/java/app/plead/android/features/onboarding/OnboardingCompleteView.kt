@@ -73,6 +73,7 @@ import app.plead.android.courtroom.GavelFrame
 import app.plead.android.courtroom.CourtGavelLayer
 import app.plead.android.courtroom.CourtGavelSprite
 import app.plead.android.courtroom.CourtArtCrops
+import androidx.compose.foundation.layout.wrapContentSize
 
 /**
  * Court Is Ready (amendment ak, brief image11): the payoff scene. The painted courtroom assembles with Judge
@@ -273,9 +274,11 @@ internal fun ReadyCourtroom(
         val z = CourtroomZones(art)
         Box(
             Modifier
-                .requiredSize(art.width.dp, art.height.dp)
+                // Swift `.frame(width:height:alignment: .topLeading)`: the art is taller than the scene, so lay it
+                // out from the top (`requiredSize` alone centres the overflow) before the offset.
+                .wrapContentSize(Alignment.TopStart, unbounded = true)
                 .offset(y = (-art.height * Z.readySceneTop).dp)
-                .let { it },
+                .requiredSize(art.width.dp, art.height.dp),
         ) {
             CourtroomBackground(art, Modifier.courtLayer(0, style = CourtLayerStyle.fade))
             val f = z.judgeFrame

@@ -40,6 +40,7 @@ import app.plead.android.models.ObjectionRuling
 import app.plead.android.models.Role
 import app.plead.android.models.TrialPhase
 import java.time.Instant
+import androidx.compose.foundation.layout.heightIn
 
 /** `AWSheet gallery` (debug builds): show [ComponentGallery] instead of the app. */
 val DemoHarness.showsComponentGallery: Boolean
@@ -51,12 +52,13 @@ fun ComponentGallery(modifier: Modifier = Modifier) {
         modifier.fillMaxSize().awBackground().statusBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        item { GallerySection("Components") { ComponentsPreviewContent() } }
+        // The two preview bodies scroll themselves (as their Swift #Previews): bound them inside the lazy list.
+        item { GallerySection("Components") { ComponentsPreviewContent(Modifier.heightIn(max = 4000.dp)) } }
         item { GallerySection("Labels, chips, forms") { GalleryLabelsAndForms() } }
         item { GallerySection("Pixel avatars") { GalleryAvatars() } }
         item { GallerySection("Avatar badges") { GalleryAvatarBadges() } }
         item { GallerySection("Logo") { GalleryLogos() } }
-        item { GallerySection("Case files") { CaseFilesPreviewContent() } }
+        item { GallerySection("Case files") { CaseFilesPreviewContent(Modifier.heightIn(max = 4000.dp)) } }
     }
 }
 

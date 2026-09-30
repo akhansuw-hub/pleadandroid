@@ -103,6 +103,7 @@ import app.plead.android.courtroom.CourtMotionTiming
 import app.plead.android.courtroom.CourtRevealMemory
 import app.plead.android.courtroom.CourtMotionDirector
 import app.plead.android.courtroom.CourtCrowdLayer
+import androidx.compose.foundation.layout.wrapContentSize
 
 object SummonsIntroView {
     // Exact copy (amendment ai).
@@ -502,6 +503,9 @@ internal fun SummonsCourtHero(layout: SummonsIntroLayout, ambient: CourtMotionDi
         Box(
             Modifier
                 .placeAt((layout.size.width - size.width) / 2, layout.artOffsetY)
+                // The art is usually taller than the hero box: lay it out from its top-left corner (`requiredSize`
+                // alone would centre the overflow and lift the whole painting by half of it).
+                .wrapContentSize(Alignment.TopStart, unbounded = true)
                 .requiredSize(size.width.dp, size.height.dp),
         ) {
             CourtroomBackground(size)

@@ -455,6 +455,7 @@ class DemoHarnessModelTests {
         val p = DemoHarness.model(defaults)
         DemoHarness.apply(to = p, defaults = defaults)
         assertEquals(AppGate.Destination.paywall, p.phase)
+        assertTrue(p.wantsLightStatusBar)
     }
 
     @Test fun sampleDraftsLabelAtoG() {

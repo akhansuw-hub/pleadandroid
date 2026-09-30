@@ -83,6 +83,7 @@ import app.plead.android.designsystem.fixedSp
 import app.plead.android.models.ObjectionRuling
 import app.plead.android.models.Role
 import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.wrapContentSize
 
 object CourtColor {
     /** Dock / dark panels. */
@@ -129,6 +130,8 @@ fun CourtRoleChip(role: Role, modifier: Modifier = Modifier) {
         maxLines = 1,
         softWrap = false,
         modifier = modifier
+            // Swift `.fixedSize()`: always the chip's own width, never clipped by a narrow name tag.
+            .wrapContentSize(unbounded = true)
             .clearAndSetSemantics { }
             .background(PleadColor.role(role), RoundedCornerShape(5.dp))
             .padding(horizontal = 7.dp, vertical = 3.dp),
