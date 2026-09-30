@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Court-session notification (Live Activity banner): cream card with the burgundy accent bar on the left. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFF6ED" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item android:gravity="start|fill_vertical" android:width="6dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FF7C3042" />
+            <corners android:topLeftRadius="12dp" android:bottomLeftRadius="12dp" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- "Case status" widget, small (2×2; iOS systemSmall). The same Glance widget answers every size (widgets/
-     PleadStatusWidget.kt): resizing it to 1×1, a one-cell strip or 4×2 shows the circular, rectangular or medium
-     layout. Refreshed by the app (WidgetCenter) and hourly as a fallback (iOS timeline policy). -->
+<!-- "Case status" widget, medium (4×2; iOS systemMedium): the judge's bench, partner, case, status and next action. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="UnusedAttribute"
     android:description="@string/plead_widget_description"
     android:initialLayout="@layout/glance_default_loading_layout"
-    android:minWidth="110dp"
+    android:minWidth="250dp"
     android:minHeight="110dp"
     android:minResizeWidth="40dp"
     android:minResizeHeight="40dp"
-    android:targetCellWidth="2"
+    android:targetCellWidth="4"
     android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="3600000"

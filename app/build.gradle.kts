@@ -120,6 +120,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
+    // Wave 3f: Glance widget previews (annotation; Studio renders them with the debug-only renderer below).
+    implementation(libs.androidx.glance.preview)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
@@ -145,6 +147,7 @@ dependencies {
     implementation(libs.play.review.ktx)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.glance.appwidget.preview)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
@@ -157,6 +160,8 @@ dependencies {
     // Wave 2b: Robolectric renders design-system composables to PNG for review (ComponentGallerySnapshotTests).
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)
+    // Wave 3f: Glance widget unit tests (runGlanceAppWidgetUnitTest).
+    testImplementation(libs.androidx.glance.appwidget.testing)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

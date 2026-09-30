@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rectangular accessory card: warmCream, 14 dp continuous corners. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFF6ED" />
+    <corners android:radius="14dp" />
+</shape>
