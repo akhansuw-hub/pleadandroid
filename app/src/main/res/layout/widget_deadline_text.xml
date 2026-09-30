@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PleadDeadlineText: "Plea due in 5:12:03", a live countdown (iOS `Text(timerInterval:countsDown:)`). The format,
+     base, colour and size are set from code (widgets/PleadWidgetComponents.kt). -->
+<Chronometer xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/deadline_chronometer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:ellipsize="end"
+    android:fontFeatureSettings="tnum"
+    android:includeFontPadding="false"
+    android:maxLines="1"
+    android:singleLine="true"
+    android:textStyle="bold" />

@@ -82,5 +82,30 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/plead_widget_info" />
         </receiver>
+
+        <!-- Wave 3f: the same "Case status" widget offered at 4×2 and 1×1 (widgets/PleadWidgetBundle.kt). -->
+        <receiver
+            android:name=".widgets.PleadMediumWidgetReceiver"
+            android:exported="false"
+            android:label="@string/plead_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/plead_widget_info_medium" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.PleadGlanceWidgetReceiver"
+            android:exported="false"
+            android:label="@string/plead_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/plead_widget_info_glance" />
+        </receiver>
     </application>
 </manifest>

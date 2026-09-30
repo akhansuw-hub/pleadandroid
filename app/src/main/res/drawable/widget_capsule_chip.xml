@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PleadStatusChip: blush capsule (chipFill). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFF9DCDA" />
+    <corners android:radius="999dp" />
+</shape>

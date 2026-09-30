@@ -2,4 +2,7 @@
 <resources>
     <string name="app_name">Plead</string>
     <string name="widget_description">Your open case at a glance.</string>
+    <!-- Wave 3f: the widget's gallery name / description (PleadStatusWidget.swift configurationDisplayName / description). -->
+    <string name="plead_widget_name">Case status</string>
+    <string name="plead_widget_description">Know when the court needs you: summons, your turn, offers and verdicts.</string>
 </resources>
