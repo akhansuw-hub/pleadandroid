@@ -152,6 +152,9 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.androidx.test.core)
+    // Wave 2b: Robolectric renders design-system composables to PNG for review (ComponentGallerySnapshotTests).
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
