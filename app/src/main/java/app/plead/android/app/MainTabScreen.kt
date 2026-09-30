@@ -86,25 +86,19 @@ private val tabItems = listOf(
 @Composable
 fun MainTabScreen(model: AppModel, modifier: Modifier = Modifier) {
     val router = model.router
-    Box(modifier.fillMaxSize().background(PleadColor.background)) {
-        if (router.tab == AppTab.court) {
-            // The courtroom draws edge to edge: under the status bar and (by `CourtTabLayout.tabBarHeight` + the
-            // navigation bar) under the tab bar, which is drawn after it.
-            CourtTab(model)
-            PleadTabBar(selected = router.tab, onSelect = { router.tab = it }, modifier = Modifier.align(Alignment.BottomCenter))
-        } else {
-            Column(Modifier.fillMaxSize()) {
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    when (router.tab) {
-                        AppTab.home -> HomeTab(model)
-                        AppTab.cases -> CasesTab(model)
-                        AppTab.us -> UsTab(model, editAvatar = editAvatarSlot(model), judgeSprite = judgeSpriteSlot)
-                        AppTab.court -> Unit
-                    }
-                }
-                PleadTabBar(selected = router.tab, onSelect = { router.tab = it })
+    Column(modifier.fillMaxSize().background(PleadColor.background)) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when (router.tab) {
+                AppTab.home -> HomeTab(model)
+                AppTab.cases -> CasesTab(model)
+                // The courtroom draws edge to edge: under the status bar and (it measures itself
+                // `CourtTabLayout.tabBarHeight` + the navigation bar taller than this slot) under the tab bar below,
+                // which is drawn after it.
+                AppTab.court -> CourtTab(model)
+                AppTab.us -> UsTab(model, editAvatar = editAvatarSlot(model), judgeSprite = judgeSpriteSlot)
             }
         }
+        PleadTabBar(selected = router.tab, onSelect = { router.tab = it })
     }
 
     router.sheet?.let { sheet ->

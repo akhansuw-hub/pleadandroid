@@ -442,6 +442,15 @@ class DemoHarnessModelTests {
         assertEquals(12, o.onboarding.stepRawValue)
         assertTrue(o.wantsLightStatusBar)
 
+        // Android: the mahogany summons cover gets light status-bar icons; Home underneath does not.
+        LaunchArguments.set(mapOf("AWDemo" to "YES", "AWSheet" to "summons"))
+        val su = DemoHarness.model(defaults)
+        DemoHarness.apply(to = su, defaults = defaults)
+        assertEquals(AppGate.Destination.tabs, su.phase)
+        assertTrue(su.wantsLightStatusBar)
+        su.router.summonsCaseId = null
+        assertFalse(su.wantsLightStatusBar)
+
         LaunchArguments.set(mapOf("AWDemo" to "YES", "AWSheet" to "exitOffer"))
         val p = DemoHarness.model(defaults)
         DemoHarness.apply(to = p, defaults = defaults)

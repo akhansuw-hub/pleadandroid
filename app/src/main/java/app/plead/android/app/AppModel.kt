@@ -136,6 +136,8 @@ class AppModel(
             if (coldOpen.isPlaying) return false
             // The summons explainer (amendment ai) runs the courtroom art edge to edge like the Court tab.
             if (phase == AppGate.Destination.onboarding && onboarding.stepRawValue == ShellOnboarding.summonsIntro) return true
+            // The summons cover is mahogany edge to edge (light status-bar icons, as on iOS).
+            if (phase == AppGate.Destination.tabs && router.summonsCaseId != null) return true
             return phase == AppGate.Destination.tabs && router.tab == AppTab.court
         }
 
