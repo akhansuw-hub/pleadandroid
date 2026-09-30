@@ -2,7 +2,7 @@
 // the debug source set) and the PaywallCopy half of `websiteDomain` (ModelDecodingTests.swift).
 package app.plead.android.features.paywall
 
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
 import app.plead.android.services.PaywallProduct
 import app.plead.android.services.PaywallProducts
 import app.plead.android.services.PurchasesService
@@ -225,14 +225,14 @@ class PaywallEntranceTests {
         // Amendment v: a small fade + 4–6 pt rise (0.35–0.45 s), no large zoom; Reduce Motion drops the rise.
         val hero = p(PaywallEntranceLayer.hero)
         assertEquals(0.98f, hero.startScale, 0f)
-        assertTrue(hero.offset.height in 4f..6f && hero.offset.width == 0f)
+        assertTrue(hero.offset.y in 4f..6f && hero.offset.x == 0f)
         assertTrue(hero.duration in 0.35..0.45)
-        assertEquals(Size.Zero, p(PaywallEntranceLayer.hero, rm = true).offset)
+        assertEquals(Offset.Zero, p(PaywallEntranceLayer.hero, rm = true).offset)
     }
 
     @Test fun risesStayWithinEightToTwelve() {
         for (layer in PaywallEntranceLayer.entries.filter { it != PaywallEntranceLayer.hero }) {
-            assertTrue("$layer", p(layer).offset.height in 8f..12f)
+            assertTrue("$layer", p(layer).offset.y in 8f..12f)
         }
     }
 

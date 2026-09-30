@@ -51,6 +51,7 @@ import app.plead.android.models.Avatar
 import app.plead.android.models.JudgePersona
 import app.plead.android.models.JurorRole
 import kotlinx.coroutines.delay
+import app.plead.android.courtroom.JudgeSprite
 
 // MARK: - Tokens
 

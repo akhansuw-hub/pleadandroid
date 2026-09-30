@@ -1,5 +1,4 @@
-// Port of ArgueWin/App/RootView.swift (RootView, LaunchView, LoadFailedView). Screens that later waves port are
-// clearly labelled placeholders ("Onboarding — wave 3b"); the gate logic around them is final.
+// Port of ArgueWin/App/RootView.swift (RootView, LaunchView, LoadFailedView).
 package app.plead.android.app
 
 import android.app.Activity
@@ -54,6 +53,24 @@ import app.plead.android.designsystem.PleadRadius
 import app.plead.android.designsystem.PleadSpacing
 import app.plead.android.designsystem.PleadType
 import kotlinx.coroutines.launch
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.view.WindowInsetsCompat
+import app.plead.android.designsystem.ComponentGallery
+import app.plead.android.designsystem.showsComponentGallery
+import app.plead.android.features.account.SecureAccountView
+import app.plead.android.features.coldopen.ColdOpenCoordinator
+import app.plead.android.features.coldopen.ColdOpenTimeline
+import app.plead.android.features.coldopen.ColdOpenView
+import app.plead.android.features.onboarding.LinkCoupleView
+import app.plead.android.features.onboarding.LinkedCelebrationView
+import app.plead.android.features.onboarding.OnboardingContainer
+import app.plead.android.features.paywall.PaywallGate
 
 /**
  * Top-level switch on the gate ([AppGate]). Each phase change is a one-way door (replace, not push):
@@ -83,12 +100,23 @@ fun RootScreen(model: AppModel) {
         if (phase == AppGate.Destination.tabs) model.applyOnboardingExit()
     }
 
+    // DEBUG `AWSheet gallery`: the design-system component gallery instead of the app.
+    if (DemoHarness.showsComponentGallery) {
+        ComponentGallery()
+        return
+    }
+
+    // Status bar hidden while the cold open plays (iOS `.statusBarHidden(model.coldOpen.isPlaying)`).
+    SideEffect {
+        val window = (view.context as? Activity)?.window ?: return@SideEffect
+        val controller = WindowCompat.getInsetsController(window, view)
+        if (coldOpenPlaying) controller.hide(WindowInsetsCompat.Type.statusBars()) else controller.show(WindowInsetsCompat.Type.statusBars())
+    }
+
     Box(Modifier.fillMaxSize().background(PleadColor.background)) {
-        if (coldOpenPlaying) {
-            // Launch cinematic / sting: full-bleed, no product chrome. The gate's destination is only
-            // mounted once it ends (so nothing, summons covers or onboarding, can appear over it).
-            WavePlaceholder("Cold open", "Features/ColdOpen/ColdOpenView.swift", "3b", onTap = model.coldOpen::skip)
-        } else {
+        // The gate's destination is only mounted once the cold open ends (so nothing, summons covers or onboarding,
+        // can appear over it); the cold open then fades away above it (ColdOpenTimeline.crossfade, 0.5 s).
+        if (!coldOpenPlaying) {
             AnimatedContent(
                 targetState = phase,
                 transitionSpec = {
@@ -98,16 +126,28 @@ fun RootScreen(model: AppModel) {
                 label = "gate",
             ) { destination -> Gate(model, destination) }
         }
+        val coldOpen = model.coldOpen
+        if (coldOpen is ColdOpenCoordinator) {
+            AnimatedVisibility(
+                visible = coldOpenPlaying,
+                enter = EnterTransition.None,
+                exit = fadeOut(tween((ColdOpenTimeline.crossfade * 1000).toInt(), easing = FastOutSlowInEasing)),
+                // Fade the flattened frame, not each layer (iOS `.compositingGroup()`).
+                modifier = Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen },
+            ) { ColdOpenView(coldOpen) }
+        }
 
         // The "legally bound" celebration when the couple links (a full-screen cover on iOS).
         if (model.store.linkCelebration && !coldOpenPlaying) {
-            WavePlaceholder(
-                "You are now legally bound", "Features/Onboarding/LinkedCelebrationView", "3b",
-                onTap = {
+            Dialog(
+                onDismissRequest = {},
+                properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false, dismissOnBackPress = false),
+            ) {
+                LinkedCelebrationView(model.store) {
                     model.store.linkCelebration = false
                     model.finishLinkStep()
-                },
-            )
+                }
+            }
         }
     }
 }
@@ -116,14 +156,13 @@ fun RootScreen(model: AppModel) {
 private fun Gate(model: AppModel, destination: AppGate.Destination) {
     when (destination) {
         AppGate.Destination.launching -> LaunchView()
-        AppGate.Destination.onboarding -> WavePlaceholder("Onboarding", "Features/Onboarding/OnboardingContainer.swift", "3b")
-        AppGate.Destination.linkCouple -> WavePlaceholder("Link your partner", "Features/Onboarding/LinkCoupleView.swift", "3b")
-        AppGate.Destination.paywall, AppGate.Destination.partnerPaid ->
-            WavePlaceholder(if (destination == AppGate.Destination.partnerPaid) "Already unlocked" else "Paywall", "Features/Paywall/PaywallGateView.swift", "3c")
+        AppGate.Destination.onboarding -> OnboardingContainer(model)
+        AppGate.Destination.linkCouple -> LinkCoupleView(model)
+        AppGate.Destination.paywall, AppGate.Destination.partnerPaid -> PaywallGate(model)
         // Amendment p: the gate resolved while the session is anonymous. Not skippable.
-        AppGate.Destination.secureAccount -> WavePlaceholder("Secure your account", "Features/Account/SecureAccountView.swift", "3b")
+        AppGate.Destination.secureAccount -> SecureAccountView(model)
         AppGate.Destination.tabs -> Box(Modifier.fillMaxSize()) {
-            MainTabScreen(model.router)
+            MainTabScreen(model)
             MainTabEffects(model)
         }
         AppGate.Destination.loadFailed -> LoadFailedView(model)
@@ -191,22 +230,6 @@ fun LoadFailedView(model: AppModel) {
             contentAlignment = Alignment.Center,
         ) {
             Text("Sign out", style = PleadFont.headline, color = PleadColor.subtleText)
-        }
-    }
-}
-
-/** Names the iOS file that owns this screen and the port wave that brings it over. Tap runs [onTap] if given. */
-@Composable
-internal fun WavePlaceholder(title: String, iosFile: String, wave: String, onTap: (() -> Unit)? = null) {
-    Box(
-        Modifier.fillMaxSize().background(PleadColor.background).statusBarsPadding().padding(PleadSpacing.xl)
-            .let { if (onTap != null) it.clickable(onClick = onTap) else it },
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("$title — wave $wave", style = PleadType.displayL, color = PleadColor.text, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(PleadSpacing.s))
-            Text(iosFile, style = PleadType.metadata, color = PleadColor.text.copy(alpha = 0.7f), textAlign = TextAlign.Center)
         }
     }
 }

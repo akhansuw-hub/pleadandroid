@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import app.plead.android.R
 import app.plead.android.designsystem.PleadLogo
+import app.plead.android.courtroom.CourtroomBackground
 
 /**
  * Bundled cold-open artwork (Assets.xcassets/ColdOpen → res/drawable-nodpi, 1170×2532) and brand marks. Everything is

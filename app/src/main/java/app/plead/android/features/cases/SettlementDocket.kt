@@ -9,10 +9,7 @@
 //
 // Never the word SERVED: that is reserved for court-ordered judgements. `SettlementDocket` is the pure
 // state → label mapping (unit tested in SettlementDocketTests).
-//
-// Not 1:1: Swift's `homeLabel(_ f: SettlementFulfilment)` takes the Settlement feature's `SettlementFulfilment`
-// (wave 3e, built in parallel). Here `homeLabel(settlement, now)` derives the same five cases itself
-// ([HomeFulfilment], the exact rules of `SettlementFulfilment.of`), so Home and its tests do not depend on 3e.
+
 package app.plead.android.features.cases
 
 import androidx.compose.foundation.background
@@ -43,15 +40,12 @@ import app.plead.android.models.CaseStatus
 import app.plead.android.models.Settlement
 import app.plead.android.models.SettlementOffer
 import app.plead.android.models.SettlementSource
-import app.plead.android.models.SettlementStatus
 import app.plead.android.services.CaseStore
-import java.time.Instant
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.delay
+import app.plead.android.features.settlement.SettlementFulfilment
 
 object SettlementDocket {
     /** Ribbon on a settled court file. */
@@ -122,57 +116,20 @@ object SettlementDocket {
 
     // MARK: Fulfilment line (Home's outstanding-agreement card)
 
-    /** Where an agreement stands (the cases of the Settlement feature's `SettlementFulfilment`). */
-    sealed class HomeFulfilment {
-        /** Accepted, due in `days` calendar days (0 = today). */
-        data class due(val days: Int) : HomeFulfilment()
-        data object overdue : HomeFulfilment()
-        data object outstanding : HomeFulfilment()
-        data object fulfilled : HomeFulfilment()
-        data object none : HomeFulfilment()
-
-        /** Gold once fulfilled, burgundy when overdue, walnut while outstanding. */
-        val tint: Color
-            get() = when (this) {
-                fulfilled -> PleadColor.gold
-                overdue -> PleadColor.burgundy
-                else -> PleadColor.walnut
-            }
-
-        companion object {
-            /** `SettlementFulfilment.of(_:now:calendar:)`. */
-            fun of(s: Settlement, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): HomeFulfilment = when (s.status) {
-                SettlementStatus.fulfilled -> fulfilled
-                SettlementStatus.accepted -> {
-                    val due = s.dueAt
-                    when {
-                        due == null -> outstanding
-                        due.isBefore(now) -> overdue
-                        else -> {
-                            val days = ChronoUnit.DAYS.between(now.atZone(zone).toLocalDate(), due.atZone(zone).toLocalDate()).toInt()
-                            due(max(0, days))
-                        }
-                    }
-                }
-                else -> none
-            }
-        }
-    }
-
     /**
      * Home's compact line for the agreement's fulfilment: "DUE · 3 DAYS", "DUE · TODAY", "OVERDUE",
      * "SETTLEMENT FULFILLED ✓". Honour-based: overdue carries no penalty.
      */
-    fun homeLabel(f: HomeFulfilment): String = when (f) {
-        is HomeFulfilment.due -> when (f.days) {
+    fun homeLabel(f: SettlementFulfilment): String = when (f) {
+        is SettlementFulfilment.due -> when (f.days) {
             0 -> "DUE · TODAY"
             1 -> "DUE · 1 DAY"
             else -> "DUE · ${f.days} DAYS"
         }
-        HomeFulfilment.overdue -> "OVERDUE"
-        HomeFulfilment.outstanding -> "OUTSTANDING"
-        HomeFulfilment.fulfilled -> "SETTLEMENT FULFILLED ✓"
-        HomeFulfilment.none -> ""
+        SettlementFulfilment.overdue -> "OVERDUE"
+        SettlementFulfilment.outstanding -> "OUTSTANDING"
+        SettlementFulfilment.fulfilled -> "SETTLEMENT FULFILLED ✓"
+        SettlementFulfilment.none -> ""
     }
 
     // MARK: Record (negotiation history)

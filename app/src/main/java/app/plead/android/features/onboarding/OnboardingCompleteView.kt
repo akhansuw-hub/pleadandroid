@@ -66,6 +66,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.min
 import kotlin.math.roundToInt
+import app.plead.android.courtroom.CourtroomZones
+import app.plead.android.courtroom.CourtroomBackground
+import app.plead.android.courtroom.JudgeSprite
+import app.plead.android.courtroom.GavelFrame
+import app.plead.android.courtroom.CourtGavelLayer
+import app.plead.android.courtroom.CourtGavelSprite
+import app.plead.android.courtroom.CourtArtCrops
 
 /**
  * Court Is Ready (amendment ak, brief image11): the payoff scene. The painted courtroom assembles with Judge
@@ -348,7 +355,7 @@ private fun ReadyGavel(zones: CourtroomZones, frame: GavelFrame) {
             .graphicsLayer { alpha = if (frame == GavelFrame.rest) 0f else 1f }
             .clearAndSetSemantics { },
     ) {
-        CourtArtCrops.shared.gavelPatch?.let { img ->
+        CourtArtCrops.shared().gavelPatch?.let { img ->
             Canvas(Modifier.offset(patch.left.dp, patch.top.dp).size(patch.width.dp, patch.height.dp)) {
                 drawImage(
                     img,

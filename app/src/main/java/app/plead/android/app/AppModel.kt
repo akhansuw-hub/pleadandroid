@@ -17,7 +17,6 @@ import app.plead.android.services.CaseStore
 import app.plead.android.services.DeepLinkRouter
 import app.plead.android.services.NotificationPermissionService
 import app.plead.android.services.NotificationPrefsModel
-import app.plead.android.services.PreviewData
 import app.plead.android.services.PurchasesService
 import app.plead.android.services.PushService
 import app.plead.android.services.TrackingPermissionService
@@ -31,6 +30,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import app.plead.android.features.onboarding.OnboardingAvatars
+import app.plead.android.features.onboarding.OnboardingModel
+import app.plead.android.features.coldopen.ColdOpenCoordinator
 
 /** Composition root: owns every service and derives the app's top-level phase. */
 class AppModel(
@@ -44,8 +46,8 @@ class AppModel(
     private val defaults: UserDefaults = UserDefaults.standard,
     coldOpen: ColdOpenHost? = null,
 ) : ViewModel() {
-    /** Onboarding (wave 3b's `OnboardingModel`; the shell's step machine until then). */
-    val onboarding: OnboardingHost = onboarding ?: ShellOnboarding(defaults)
+    /** Onboarding (`OnboardingModel`). */
+    val onboarding: OnboardingHost = onboarding ?: OnboardingModel(defaults)
     val notifications = NotificationPermissionService(push = push, defaults = defaults)
 
     /** App Tracking Transparency on iOS (amendment at); always authorised on Android (amendment az). */
@@ -58,7 +60,7 @@ class AppModel(
     val notificationPrefs = NotificationPrefsModel(defaults = defaults)
 
     /** Launch cinematic / logo sting (CONTRACTS-v2 amendment h). RootScreen shows it over everything while playing. */
-    val coldOpen: ColdOpenHost = coldOpen ?: NoColdOpen()
+    val coldOpen: ColdOpenHost = coldOpen ?: ColdOpenCoordinator()
 
     /** Where screen 9 asked to go; applied once the gate lets the user into the tabs. */
     enum class OnboardingExit { fileCase, invite }
@@ -259,8 +261,7 @@ class AppModel(
         } catch (_: Exception) {
             throw CourtIdentityError.profile
         }
-        // Wave 3b: `OnboardingAvatars.presets` (the same eight identities as PreviewData.onboardingAvatarPresets).
-        Analytics.track("onboarding_identity_completed", mapOf("custom_avatar" to (!PreviewData.onboardingAvatarPresets.contains(avatar)).toString()))
+        Analytics.track("onboarding_identity_completed", mapOf("custom_avatar" to (!OnboardingAvatars.presets.contains(avatar)).toString()))
         onboarding.advance()
     }
 

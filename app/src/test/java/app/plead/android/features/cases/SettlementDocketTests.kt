@@ -3,8 +3,8 @@
 //
 // CONTRACTS-v2 amendment n (Settle Outside Court) on the docket, Home and the record:
 // SETTLED ribbon + SETTLED OUT OF COURT stamp, the pending chip and routing, Home's card selection and the
-// negotiation-history labels. Home's fulfilment line takes the settlement itself (`HomeFulfilment.of`, the rules of
-// the Settlement feature's `SettlementFulfilment.of`); see SettlementDocket.kt.
+// negotiation-history labels. Home's fulfilment line is `homeLabel(SettlementFulfilment.of(...))`,
+// as in Swift.
 package app.plead.android.features.cases
 
 import app.plead.android.designsystem.CaseFileDocket
@@ -28,6 +28,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import app.plead.android.features.settlement.SettlementFulfilment
 
 private val me = UUID.fromString("11111111-1111-1111-1111-111111111111")       // PreviewData.meId
 private val partner = UUID.fromString("22222222-2222-2222-2222-222222222222")  // PreviewData.partnerId
@@ -57,7 +58,7 @@ class SettlementDocketRowTests {
         for (text in listOf(
             SettlementDocket.ribbonTitle(kase, storeTitle = store.ribbonTitle(kase)),
             SettlementDocket.stamp(kase) ?: "",
-            SettlementDocket.homeLabel(SettlementDocket.HomeFulfilment.of(PreviewData.settledSettlement)),
+            SettlementDocket.homeLabel(SettlementFulfilment.of(PreviewData.settledSettlement)),
         )) {
             assertFalse(text, text.uppercase().contains("SERVED"))
             assertFalse(text, text.lowercase().contains("won"))
@@ -169,7 +170,7 @@ class SettlementHomeTests {
     @Test fun homeDueLabels() {
         val zone = ZoneId.of("UTC")
         val now = ZonedDateTime.of(2026, 9, 24, 10, 0, 0, 0, zone).toInstant()
-        fun label(s: app.plead.android.models.Settlement) = SettlementDocket.homeLabel(SettlementDocket.HomeFulfilment.of(s, now, zone))
+        fun label(s: app.plead.android.models.Settlement) = SettlementDocket.homeLabel(SettlementFulfilment.of(s, now, zone))
         var s = PreviewData.settledSettlement.copy(dueAt = now.atZone(zone).plusDays(3).toInstant())
         assertEquals("DUE · 3 DAYS", label(s))
         s = s.copy(dueAt = now.atZone(zone).plusDays(1).toInstant())

@@ -101,6 +101,7 @@ import app.plead.android.designsystem.PleadSpacing
 import app.plead.android.designsystem.SFSymbol
 import app.plead.android.designsystem.TextStyleKind
 import app.plead.android.designsystem.pleadShadow
+import app.plead.android.features.paywall.PaywallPalette
 
 object OnboardingPalette {
     // `PaywallPalette` (Features/Paywall/PaywallPalette.swift) values, inlined so onboarding does not depend on wave 3c.

@@ -61,6 +61,9 @@ import app.plead.android.models.Avatar
 import app.plead.android.models.JudgePersona
 import app.plead.android.models.JurorRole
 import kotlinx.coroutines.delay
+import app.plead.android.features.paywall.PixelGlyph
+import app.plead.android.features.paywall.PaywallSprites
+import app.plead.android.courtroom.JudgeSprite
 
 // MARK: 1 · Welcome
 

@@ -1,36 +1,31 @@
-// Seams to the views wave 3d's screens embed from features built in parallel (waves 3a and 3e). Each function below
-// has the Swift view's parameters and a clearly labelled placeholder body; after the merge the integrator replaces
-// each body with the one-line call in its KDoc (nothing else in wave 3d changes).
+// Seams to the views wave 3d's screens embed from other features (waves 3a and 3e). Kept as one-line forwards so
+// the 3d call sites read as in Swift; each names the view it shows.
 //
-//   DeliberationPanelSlot        → DeliberationPanel            (Features/Deliberation, wave 3a)
-//   SettledJudgeLine             → CourtroomLogic.settledJudgeLine (Courtroom, wave 3a)
-//   JudgementStatusCardSlot      → JudgementStatusCard          (Features/Judgement, wave 3e)
-//   VerdictJudgementLineSlot     → VerdictJudgementLine         (Features/Judgement, wave 3e)
-//   JudgementFulfilmentSlipSlot  → JudgementFulfilmentSlip      (Features/Judgement, wave 3e)
-//   OutstandingJudgementCardSlot → OutstandingJudgementCard     (Features/Judgement, wave 3e)
-//   SettlementFulfilmentCardSlot → SettlementFulfilmentCard     (Features/Settlement, wave 3e)
-//   SettlementStatusRowSlot      → SettlementStatusRow          (Features/Settlement, wave 3e)
-//   SettlementEntryButtonSlot    → SettlementEntryButton        (Features/Settlement, wave 3e)
-//   SettlementRoomSheetSlot      → SettlementRoomView as a sheet (Features/Settlement, wave 3e)
+//   DeliberationPanelSlot        → DeliberationPanel            (Features/Deliberation)
+//   SettledJudgeLine             → CourtroomLogic.settledJudgeLine (Courtroom)
+//   JudgementStatusCardSlot      → JudgementStatusCard          (Features/Judgement)
+//   VerdictJudgementLineSlot     → VerdictJudgementLine         (Features/Judgement)
+//   JudgementFulfilmentSlipSlot  → JudgementFulfilmentSlip      (Features/Judgement)
+//   OutstandingJudgementCardSlot → OutstandingJudgementCard     (Features/Judgement)
+//   SettlementFulfilmentCardSlot → SettlementFulfilmentCard     (Features/Settlement)
+//   SettlementStatusRowSlot      → SettlementStatusRow          (Features/Settlement)
+//   SettlementEntryButtonSlot    → SettlementEntryButton        (Features/Settlement)
+//   SettlementRoomSheetSlot      → SettlementRoomView as a sheet (Features/Settlement)
 package app.plead.android.features.casedetail
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import app.plead.android.app.AppRouter
-import app.plead.android.designsystem.PleadColor
-import app.plead.android.designsystem.PleadRadius
-import app.plead.android.designsystem.PleadSpacing
-import app.plead.android.designsystem.PleadType
+import app.plead.android.courtroom.CourtroomLogic
+import app.plead.android.features.deliberation.DeliberationPanel
+import app.plead.android.features.judgement.JudgementFulfilmentSlip
+import app.plead.android.features.judgement.JudgementStatusCard
+import app.plead.android.features.judgement.OutstandingJudgementCard
+import app.plead.android.features.judgement.VerdictJudgementLine
+import app.plead.android.features.settlement.SettlementEntryButton
+import app.plead.android.features.settlement.SettlementFulfilmentCard
+import app.plead.android.features.settlement.SettlementRoomView
+import app.plead.android.features.settlement.SettlementStatusRow
 import app.plead.android.models.Case
 import app.plead.android.models.Judgement
 import app.plead.android.models.Settlement
@@ -40,93 +35,49 @@ import app.plead.android.services.CaseStore
 import java.time.Instant
 import java.util.UUID
 
-/** `CourtroomLogic.settledJudgeLine` (the settled case's fixed flavour line). → `CourtroomLogic.settledJudgeLine`. */
-const val SettledJudgeLine = "The parties have spared the court the trouble. Miracles do happen."
+/** `CourtroomLogic.settledJudgeLine` (the settled case's fixed flavour line). */
+const val SettledJudgeLine = CourtroomLogic.settledJudgeLine
 
-/** `DeliberationPanel(kase:showsTitle:)`. → `DeliberationPanel(kase, showsTitle = showsTitle)`. */
+/** `DeliberationPanel(kase:showsTitle:)`. */
 @Composable
-fun DeliberationPanelSlot(kase: Case, showsTitle: Boolean) {
-    SlotPlaceholder("DeliberationPanel", "Features/Deliberation/DeliberationPanel.swift", "3a", dark = true)
-}
+fun DeliberationPanelSlot(kase: Case, showsTitle: Boolean) = DeliberationPanel(kase, showsTitle = showsTitle)
 
-/** `JudgementStatusCard(kase:judgement:)` (the record's fulfilment block). → `JudgementStatusCard(kase, judgement, …)`. */
+/** `JudgementStatusCard(kase:judgement:)` (the record's fulfilment block). */
 @Composable
-fun JudgementStatusCardSlot(store: CaseStore, router: AppRouter, kase: Case, judgement: Judgement) {
-    SlotPlaceholder("JudgementStatusCard", "Features/Judgement/JudgementStatusCard.swift", "3e")
-}
+fun JudgementStatusCardSlot(store: CaseStore, router: AppRouter, kase: Case, judgement: Judgement) =
+    JudgementStatusCard(kase, judgement, store, router)
 
-/** `VerdictJudgementLine(verdict:judgement:)` (a legacy ruling's sentence). → `VerdictJudgementLine(verdict, judgement)`. */
+/** `VerdictJudgementLine(verdict:judgement:)` (a legacy ruling's sentence). */
 @Composable
-fun VerdictJudgementLineSlot(verdict: Verdict, judgement: Judgement?) {
-    SlotPlaceholder("VerdictJudgementLine", "Features/Judgement/JudgementStatusCard.swift", "3e")
-}
+fun VerdictJudgementLineSlot(verdict: Verdict, judgement: Judgement?) = VerdictJudgementLine(verdict, judgement)
 
-/** `JudgementFulfilmentSlip(kase:judgement:)` under a closed docket row. → `JudgementFulfilmentSlip(kase, judgement, …)`. */
+/** `JudgementFulfilmentSlip(kase:judgement:)` under a closed docket row. */
 @Composable
-fun JudgementFulfilmentSlipSlot(store: CaseStore, kase: Case, judgement: Judgement) {
-    SlotPlaceholder("JudgementFulfilmentSlip", "Features/Judgement/JudgementFulfilment.swift", "3e")
-}
+fun JudgementFulfilmentSlipSlot(store: CaseStore, kase: Case, judgement: Judgement) = JudgementFulfilmentSlip(kase, judgement, store)
 
-/** `OutstandingJudgementCard(kase:judgement:)` on Home. → `OutstandingJudgementCard(kase, judgement, …)`. */
+/** `OutstandingJudgementCard(kase:judgement:)` on Home. */
 @Composable
-fun OutstandingJudgementCardSlot(store: CaseStore, router: AppRouter, kase: Case, judgement: Judgement, modifier: Modifier = Modifier) {
-    SlotPlaceholder("OutstandingJudgementCard", "Features/Judgement/JudgementFulfilment.swift", "3e", modifier = modifier)
-}
+fun OutstandingJudgementCardSlot(store: CaseStore, router: AppRouter, kase: Case, judgement: Judgement, modifier: Modifier = Modifier) =
+    OutstandingJudgementCard(kase, judgement, store, router, modifier)
 
-/** `SettlementFulfilmentCard(settlement:offer:now:)` on the record. → `SettlementFulfilmentCard(settlement, offer, now, …)`. */
+/** `SettlementFulfilmentCard(settlement:offer:now:)` on the record. */
 @Composable
-fun SettlementFulfilmentCardSlot(store: CaseStore, settlement: Settlement, offer: SettlementOffer?, now: Instant) {
-    SlotPlaceholder("SettlementFulfilmentCard", "Features/Settlement/SettlementFulfilment.swift", "3e")
-}
+fun SettlementFulfilmentCardSlot(store: CaseStore, settlement: Settlement, offer: SettlementOffer?, now: Instant) =
+    SettlementFulfilmentCard(settlement, offer, store, now = now)
 
-/** `SettlementStatusRow(settlement:offer:now:)` in the docket's settled slip. → `SettlementStatusRow(settlement, offer, now)`. */
+/** `SettlementStatusRow(settlement:offer:now:)` in the docket's settled slip. */
 @Composable
-fun SettlementStatusRowSlot(settlement: Settlement, offer: SettlementOffer?, now: Instant) {
-    Text("SettlementStatusRow · wave 3e", style = PleadType.metadata, color = PleadColor.subtleText)
-}
+fun SettlementStatusRowSlot(settlement: Settlement, offer: SettlementOffer?, now: Instant) = SettlementStatusRow(settlement, offer, now = now)
 
-/**
- * `SettlementEntryButton(title:action:)` under the pleas (parchment on mahogany). [title] null = its default
- * "Settle Outside Court". → `SettlementEntryButton(title = title ?: default, onClick = onClick)`.
- */
+/** `SettlementEntryButton(title:action:)` under the pleas (parchment on mahogany). [title] null = its default "Settle Outside Court". */
 @Composable
-fun SettlementEntryButtonSlot(title: String?, onClick: () -> Unit) {
-    Text(
-        title ?: "Settle Outside Court",
-        style = PleadType.uiButtonSecondary,
-        color = PleadColor.parchment,
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, PleadColor.parchment.copy(alpha = 0.28f), RoundedCornerShape(PleadRadius.button))
-            .clickable(onClick = onClick)
-            .padding(PleadSpacing.m),
-    )
-}
+fun SettlementEntryButtonSlot(title: String?, onClick: () -> Unit) =
+    if (title != null) SettlementEntryButton(title = title, action = onClick) else SettlementEntryButton(action = onClick)
 
-/**
- * The summons' `.sheet { SettlementRoomView(caseId:) { onSent } }`. → `CaseSheetHost(onDismiss) { SettlementRoomView(caseId,
- * onSent = onSent, onDismiss = onDismiss, …) }`.
- */
+/** The summons' `.sheet { SettlementRoomView(caseId:) { onSent } }`. */
 @Composable
 fun SettlementRoomSheetSlot(store: CaseStore, router: AppRouter, caseId: UUID, onSent: () -> Unit, onDismiss: () -> Unit) {
     CaseSheetHost(onDismissRequest = onDismiss) {
-        SlotPlaceholder("SettlementRoomView", "Features/Settlement/SettlementRoomView.swift", "3e")
-    }
-}
-
-/** The placeholder every slot draws until the merge: names the Swift view and the wave that ports it. */
-@Composable
-private fun SlotPlaceholder(name: String, iosFile: String, wave: String, modifier: Modifier = Modifier, dark: Boolean = false) {
-    val shape = RoundedCornerShape(PleadRadius.card)
-    val fg: Color = if (dark) PleadColor.cream else PleadColor.cocoa
-    Column(
-        modifier
-            .fillMaxWidth()
-            .background(if (dark) PleadColor.mahogany else PleadColor.parchment, shape)
-            .border(1.dp, PleadColor.walnut.copy(alpha = 0.22f), shape)
-            .padding(PleadSpacing.l),
-    ) {
-        Text("$name — wave $wave", style = PleadType.titleM, color = fg)
-        Text(iosFile, style = PleadType.metadata, color = fg.copy(alpha = 0.7f))
+        SettlementRoomView(caseId, store, router, onDismiss = onDismiss, onSent = onSent)
     }
 }

@@ -50,6 +50,10 @@ import app.plead.android.models.JudgePersona
 import app.plead.android.models.Role
 import kotlin.math.floor
 import kotlin.math.roundToInt
+import app.plead.android.courtroom.CourtroomZones
+import app.plead.android.courtroom.CourtWalkCycle
+import app.plead.android.courtroom.CourtFigurePose
+import app.plead.android.courtroom.CourtMotionTiming
 
 /** The demo personas (the same pixel avatars as the app's demo couple, `PreviewData.me` / `.partner`). */
 object MockTrialPersonas {

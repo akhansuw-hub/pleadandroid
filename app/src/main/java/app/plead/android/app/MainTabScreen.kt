@@ -1,6 +1,6 @@
 // Port of the tab shell in ArgueWin/App/MainTabView.swift: four peer tabs (Home, Cases, Court, Us), each with its
-// own stack, and the root-level sheet slot above them. Wave 1 draws the real tab bar with placeholder bodies;
-// wave 2b replaces each placeholder with the tab's screen and adds the summons cover and settlement prompts.
+// own stack, and the root-level sheet slot above them. The behaviour half (summons cover, settlement prompts,
+// routed links) is MainTabEffects.kt.
 package app.plead.android.app
 
 import androidx.compose.foundation.background
@@ -35,7 +35,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.Dp
+import app.plead.android.courtroom.JudgeSprite
+import app.plead.android.features.casedetail.CaseSheetHost
+import app.plead.android.features.cases.CasesTab
+import app.plead.android.features.court.CourtTab
+import app.plead.android.features.defence.DefenceSheet
+import app.plead.android.features.filecase.FileCaseSheet
+import app.plead.android.features.home.HomeTab
+import app.plead.android.features.judgement.JudgementSelectionView
+import app.plead.android.features.onboarding.EditAvatarView
+import app.plead.android.features.onboarding.InviteSheet
+import app.plead.android.features.onboarding.OnboardingPreviewScreens
+import app.plead.android.features.scheduling.SchedulingSheet
+import app.plead.android.features.settings.SettingsView
+import app.plead.android.features.settlement.SettlementAcceptedView
+import app.plead.android.features.settlement.SettlementResponseSheet
+import app.plead.android.features.settlement.SettlementRoomView
+import app.plead.android.features.us.UsTab
+import app.plead.android.models.JudgePersona
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -63,49 +83,67 @@ private val tabItems = listOf(
     TabItem(AppTab.us, "Us", Icons.Outlined.FavoriteBorder, Icons.Filled.Favorite),                        // heart
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainTabScreen(router: AppRouter, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxSize().background(PleadColor.background)) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            when (router.tab) {
-                AppTab.home -> TabNavHost(
-                    path = router.homePath,
-                    onPathChange = { router.homePath = it },
-                    root = { TabPlaceholder("Home", "Features/Home/HomeView.swift", "3d") },
-                    caseDetail = { TabPlaceholder("Case record", "Features/CaseDetail/CaseDetailView.swift", "3d") },
-                )
-                AppTab.cases -> TabNavHost(
-                    path = router.casesPath,
-                    onPathChange = { router.casesPath = it },
-                    root = { TabPlaceholder("Cases", "Features/Cases/CasesView.swift", "3d") },
-                    caseDetail = { TabPlaceholder("Case record", "Features/CaseDetail/CaseDetailView.swift", "3d") },
-                )
-                AppTab.court -> TabPlaceholder("Court", "Features/Court/CourtTabView.swift", "2b / 3a", dark = true)
-                AppTab.us -> TabPlaceholder("Us", "Features/Us/UsView.swift", "3e")
+fun MainTabScreen(model: AppModel, modifier: Modifier = Modifier) {
+    val router = model.router
+    Box(modifier.fillMaxSize().background(PleadColor.background)) {
+        if (router.tab == AppTab.court) {
+            // The courtroom draws edge to edge: under the status bar and (by `CourtTabLayout.tabBarHeight` + the
+            // navigation bar) under the tab bar, which is drawn after it.
+            CourtTab(model)
+            PleadTabBar(selected = router.tab, onSelect = { router.tab = it }, modifier = Modifier.align(Alignment.BottomCenter))
+        } else {
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    when (router.tab) {
+                        AppTab.home -> HomeTab(model)
+                        AppTab.cases -> CasesTab(model)
+                        AppTab.us -> UsTab(model, editAvatar = editAvatarSlot(model), judgeSprite = judgeSpriteSlot)
+                        AppTab.court -> Unit
+                    }
+                }
+                PleadTabBar(selected = router.tab, onSelect = { router.tab = it })
             }
         }
-        PleadTabBar(selected = router.tab, onSelect = { router.tab = it })
     }
 
     router.sheet?.let { sheet ->
-        ModalBottomSheet(onDismissRequest = { router.sheet = null }, containerColor = PleadColor.background) {
-            TabPlaceholder(sheet.id, sheetOwner(sheet), "3b-3e", modifier = Modifier.height(320.dp))
-        }
+        key(sheet.id) { MainSheet(model, sheet) }
     }
 }
 
-/** Which iOS file (and so which port wave) owns each sheet. */
-private fun sheetOwner(sheet: AppSheet): String = when (sheet) {
-    AppSheet.fileCase -> "Features/FileCase/FileCaseView.swift"
-    is AppSheet.defence -> "Features/Defence/DefenceView.swift"
-    is AppSheet.scheduling -> "Features/Scheduling/SchedulingView.swift"
-    AppSheet.settings -> "Features/Settings/SettingsView.swift"
-    AppSheet.invite -> "InviteSheet"
-    is AppSheet.chooseJudgement -> "Features/Judgement/JudgementSelectionView.swift"
-    is AppSheet.settlementRoom -> "Features/Settlement/SettlementRoomView.swift"
-    is AppSheet.settlementResponse -> "Features/Settlement/SettlementResponseSheet.swift"
-    is AppSheet.settlementAccepted -> "Features/Settlement/SettlementAcceptedView.swift"
+/** Us / Settings "Edit avatar": `EditAvatarView` (AvatarCreatorView.swift). */
+private fun editAvatarSlot(model: AppModel): @Composable (onDone: () -> Unit) -> Unit = { done -> EditAvatarView(model.store, onDismiss = done) }
+
+/** The Us tab's judge tiles: the courtroom's pixel judge (`JudgeSprite`, CourtArt). */
+private val judgeSpriteSlot: @Composable (JudgePersona, Dp) -> Unit = { persona, cell -> JudgeSprite(persona, cell = cell.value) }
+
+/**
+ * The root-level sheet slot (Swift `.sheet(item: $router.sheet)`). The filing sheets bring their own bottom sheet;
+ * the others are presented full height in the same host, keyed on `sheet.id` so a swap (room → response) rebuilds
+ * the content. Swipe-down is refused while a send is in flight (`SheetScaffold(dismissDisabled:)`).
+ */
+@Composable
+private fun MainSheet(model: AppModel, sheet: AppSheet) {
+    val router = model.router
+    val dismiss = { router.sheet = null }
+    when (sheet) {
+        AppSheet.fileCase -> FileCaseSheet(model, dismiss)
+        is AppSheet.defence -> DefenceSheet(model, sheet.caseId, dismiss)
+        is AppSheet.scheduling -> SchedulingSheet(model, sheet.caseId, dismiss)
+        AppSheet.settings -> CaseSheetHost(onDismissRequest = dismiss) {
+            SettingsView(
+                model, dismiss,
+                editAvatar = editAvatarSlot(model),
+                onboardingPreview = { close -> OnboardingPreviewScreens(model, close) },
+            )
+        }
+        AppSheet.invite -> CaseSheetHost(onDismissRequest = dismiss) { InviteSheet(model, onDone = dismiss) }
+        is AppSheet.chooseJudgement -> CaseSheetHost(onDismissRequest = dismiss) { JudgementSelectionView(sheet.caseId, model, dismiss) }
+        is AppSheet.settlementRoom -> CaseSheetHost(onDismissRequest = dismiss) { SettlementRoomView(sheet.caseId, model, dismiss) }
+        is AppSheet.settlementResponse -> CaseSheetHost(onDismissRequest = dismiss) { SettlementResponseSheet(sheet.caseId, model, dismiss) }
+        is AppSheet.settlementAccepted -> CaseSheetHost(onDismissRequest = dismiss) { SettlementAcceptedView(sheet.caseId, model, dismiss) }
+    }
 }
 
 /**
@@ -158,30 +196,6 @@ fun PleadTabBar(selected: AppTab, onSelect: (AppTab) -> Unit, modifier: Modifier
                     )
                 }
             }
-        }
-    }
-}
-
-/** Wave-1 body: names the iOS file that owns this screen and the port wave that brings it over. */
-@Composable
-private fun TabPlaceholder(
-    title: String,
-    iosFile: String,
-    wave: String,
-    modifier: Modifier = Modifier,
-    dark: Boolean = false,
-) {
-    val background = if (dark) PleadColor.courtBackdrop else PleadColor.background
-    val foreground: Color = if (dark) PleadColor.cream else PleadColor.text
-    Box(
-        modifier.fillMaxSize().background(background).statusBarsPadding().padding(PleadSpacing.xl),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, style = PleadType.displayL, color = foreground, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(PleadSpacing.s))
-            Text(iosFile, style = PleadType.metadata, color = foreground.copy(alpha = 0.7f), textAlign = TextAlign.Center)
-            Text("Port wave $wave", style = PleadType.labelCapsTracked, color = foreground.copy(alpha = 0.7f))
         }
     }
 }

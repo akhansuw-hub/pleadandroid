@@ -58,6 +58,7 @@ import app.plead.android.designsystem.PleadSpacing
 import app.plead.android.designsystem.PleadType
 import app.plead.android.designsystem.TextStyleKind
 import app.plead.android.designsystem.accessibilityReduceMotion
+import app.plead.android.features.casedetail.InteractiveDismissDisabled
 
 // MARK: - Sheet chrome
 
@@ -81,6 +82,8 @@ fun SheetScaffold(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BackHandler(enabled = dismissDisabled) {}
+    // The host's swipe-down / scrim dismissal honours it too (CaseSheetHost).
+    InteractiveDismissDisabled(dismissDisabled)
     Column(modifier.fillMaxSize().background(background)) {
         Box(Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(horizontal = PleadSpacing.s)) {
             if (cancelTitle != null) {

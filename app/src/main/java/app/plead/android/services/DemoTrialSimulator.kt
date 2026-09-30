@@ -71,6 +71,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
+import app.plead.android.courtroom.CourtroomLogic
+import app.plead.android.features.judgement.judgementPendingSentence
 
 class DemoTrialSimulator(store: CaseStore, var config: Config = Config.fromDefaults()) {
 
@@ -1167,17 +1169,11 @@ class DemoTrialSimulator(store: CaseStore, var config: Config = Config.fromDefau
     }
 
     companion object {
-        /**
-         * Swift `Verdict.judgementPendingSentence` (Features/Judgement/JudgementPresentation.swift, wave 3e): the
-         * fixed line the backend writes since amendment j. Kept here so services don't depend on a feature; in sync.
-         */
-        const val judgementPendingSentence = "The prevailing party will choose the court's judgement."
+        /** Swift `Verdict.judgementPendingSentence` (Features/Judgement/JudgementPresentation.kt): the fixed line the backend writes since amendment j. */
+        val judgementPendingSentence: String get() = Verdict.judgementPendingSentence
 
-        /**
-         * Swift `CourtroomLogic.restLine(for:)` (Courtroom/CourtroomLogic.swift, wave 3a): the default body when
-         * resting without typing anything. Kept here so services don't depend on the courtroom; in sync.
-         */
-        fun restLine(role: Role): String = "No further exhibits, Your Honour. The ${role.rawValue} rests."
+        /** Swift `CourtroomLogic.restLine(for:)`: the default body when resting without typing anything. */
+        fun restLine(role: Role): String = CourtroomLogic.restLine(role)
 
         fun presenter(phase: TrialPhase?): Role? = when (phase) {
             TrialPhase.plaintiffExhibits -> Role.plaintiff

@@ -57,6 +57,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import app.plead.android.designsystem.shortTitle
 
 /**
  * Single source of truth for the couple's data. Initial fetch + Supabase Realtime.
@@ -1621,27 +1622,6 @@ class CaseStore private constructor(val backend: Backend?, preview: Boolean) {
 /** A settlement offer that awaits my response (drives the response sheet on app / case open). */
 data class SettlementPrompt(val caseId: UUID, val settlementId: UUID, val round: Int)
 
-/**
- * Swift `CaseStatus.shortTitle` (DesignSystem/Components.swift, wave 2b). Private copy so the store does not depend
- * on the design system; keep in sync.
- */
-private val CaseStatus.shortTitle: String
-    get() = when (this) {
-        CaseStatus.drafting -> "Drafting"
-        CaseStatus.summoned -> "Summoned"
-        CaseStatus.defence -> "Defence"
-        CaseStatus.scheduling -> "Scheduling"
-        CaseStatus.trial -> "In trial"
-        CaseStatus.deliberating -> "Deliberating"
-        CaseStatus.awaitingVerdict -> "Deliberating"
-        CaseStatus.verdict -> "Verdict"
-        CaseStatus.appeal -> "Appeal"
-        CaseStatus.closed -> "Closed"
-        CaseStatus.closedGuilty -> "Guilty plea"
-        CaseStatus.closedDefault -> "Default"
-        CaseStatus.closedSettled -> "Settled"
-        CaseStatus.mistrial -> "Mistrial"
-    }
 
 /** The new row for inserts/updates, decoded with the app's tolerant date strategy. */
 internal fun <T> PostgresAction.decoded(serializer: KSerializer<T>): T? {

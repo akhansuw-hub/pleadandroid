@@ -63,6 +63,9 @@ import app.plead.android.designsystem.SFSymbol
 import app.plead.android.designsystem.TextStyleKind
 import app.plead.android.designsystem.pleadShadow
 import kotlinx.coroutines.launch
+import app.plead.android.features.paywall.PixelSprite
+import app.plead.android.features.paywall.PixelGlyph
+import app.plead.android.features.paywall.PixelInk
 
 object WidgetSetupInstructionsSheet {
     /** iOS "Add Plead to your iPhone". */

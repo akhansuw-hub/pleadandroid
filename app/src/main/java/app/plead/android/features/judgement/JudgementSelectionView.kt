@@ -72,6 +72,7 @@ import app.plead.android.services.CaseStore
 import app.plead.android.services.docketTitle
 import java.util.UUID
 import kotlinx.coroutines.launch
+import app.plead.android.courtroom.CourtroomLogic
 
 /**
  * Screen B: CHOOSE THE COURT'S JUDGEMENT. Presented as a sheet (Home, Case detail, the verdict
@@ -163,11 +164,6 @@ fun JudgementSelectionView(caseId: UUID, model: AppModel, onDismiss: () -> Unit,
     SuccessFeedback(selection.didDeliver, fire = selection.didDeliver)
 }
 
-/** `CourtroomLogic.sentenceCase` (Courtroom, wave 3a): "CHOOSE A RESOLUTION" → "Choose a resolution". */
-private fun sentenceCase(s: String): String {
-    val lower = s.lowercase()
-    return lower.take(1).uppercase() + lower.drop(1)
-}
 
 @Composable
 private fun SelectionHeader(selection: JudgementSelectionModel, kase: Case?) {
@@ -179,7 +175,7 @@ private fun SelectionHeader(selection: JudgementSelectionModel, kase: Case?) {
             }
         }
         // Sentence case in Fraunces: long phrases are never set in caps (typography brief §7).
-        Text(sentenceCase(selection.title), style = PleadType.displayL, color = PleadColor.cocoa, modifier = Modifier.semantics { heading() })
+        Text(CourtroomLogic.sentenceCase(selection.title), style = PleadType.displayL, color = PleadColor.cocoa, modifier = Modifier.semantics { heading() })
         Text(selection.subtitle, style = PleadType.body, color = PleadColor.subtleText)
     }
 }

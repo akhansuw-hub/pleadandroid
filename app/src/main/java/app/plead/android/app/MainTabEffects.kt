@@ -5,9 +5,11 @@ package app.plead.android.app
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import app.plead.android.features.summons.SummonsCover
 import app.plead.android.services.SettlementPrompt
 
 @Composable
@@ -16,14 +18,11 @@ fun MainTabEffects(model: AppModel) {
     val store = model.store
     val links = model.links
 
-    // The summons cover (a full-screen cover on iOS; SummonsView is wave 3d). "Decide later" defers it this session.
+    // The summons cover (a full-screen cover on iOS). "Decide later" defers it this session.
     val summonsId = router.summonsCaseId
     var coverWasUp by remember { mutableStateOf(false) }
     if (summonsId != null) {
-        WavePlaceholder("Summons", "Features/Summons/SummonsView.swift", "3d", onTap = {
-            router.deferredSummons = router.deferredSummons + summonsId
-            router.summonsCaseId = null
-        })
+        key(summonsId) { SummonsCover(model, summonsId) { router.summonsCaseId = null } }
     }
     LaunchedEffect(summonsId) {
         if (summonsId != null) {

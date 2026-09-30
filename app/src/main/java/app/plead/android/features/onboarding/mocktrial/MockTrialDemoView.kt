@@ -75,6 +75,9 @@ import app.plead.android.designsystem.pleadShadow
 import app.plead.android.models.JudgePersona
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import app.plead.android.courtroom.CourtroomZones
+import app.plead.android.courtroom.CourtroomBackground
+import app.plead.android.courtroom.JudgeSprite
 
 /**
  * The Last Slice, a compressed full case played in the courtroom world. `onContinue` fires from I'M READY FOR

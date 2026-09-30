@@ -40,6 +40,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
+import app.plead.android.features.onboarding.OnboardingAvatars
 
 object PreviewData {
     val meId: UUID = UUID.fromString("11111111-1111-1111-1111-111111111111")
@@ -607,17 +608,8 @@ object PreviewData {
         identityInUse = DemoHarness.secureConflict,
     )
 
-    /** The eight preset court identities (onboarding screen 5); index 0 is the default. Mirror of `OnboardingAvatars`. */
-    val onboardingAvatarPresets: List<Avatar> = listOf(
-        Avatar(skin = 1, hair = 5, hairstyle = Avatar.Hairstyle.long, top = 3, outfit = Avatar.Outfit.dress),
-        Avatar(skin = 3, hair = 0, hairstyle = Avatar.Hairstyle.curly, top = 5, outfit = Avatar.Outfit.hoodie),
-        Avatar(skin = 0, hair = 4, hairstyle = Avatar.Hairstyle.ponytail, top = 0, outfit = Avatar.Outfit.tee),
-        Avatar(skin = 4, hair = 0, hairstyle = Avatar.Hairstyle.buzz, top = 6, outfit = Avatar.Outfit.shirt),
-        Avatar(skin = 2, hair = 1, hairstyle = Avatar.Hairstyle.bun, top = 4, outfit = Avatar.Outfit.dress),
-        Avatar(skin = 5, hair = 0, hairstyle = Avatar.Hairstyle.short, top = 7, outfit = Avatar.Outfit.suit),
-        Avatar(skin = 1, hair = 3, hairstyle = Avatar.Hairstyle.short, top = 1, outfit = Avatar.Outfit.hoodie),
-        Avatar(skin = 2, hair = 2, hairstyle = Avatar.Hairstyle.long, top = 2, outfit = Avatar.Outfit.shirt),
-    )
+    /** The eight preset court identities (onboarding screen 5); index 0 is the default. `OnboardingAvatars.presets`. */
+    val onboardingAvatarPresets: List<Avatar> get() = OnboardingAvatars.presets
 
     /**
      * Amendment p: an anonymous user ("Arif") whose couple just became premium (bought on this phone):

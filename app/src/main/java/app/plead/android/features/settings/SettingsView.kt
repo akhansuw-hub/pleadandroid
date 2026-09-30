@@ -125,11 +125,12 @@ import java.time.format.FormatStyle
 import java.util.UUID
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import app.plead.android.features.paywall.PaywallCopy
 
-/** Legal pages (Swift `PaywallCopy.termsURL` / `privacyURL`; the paywall wave owns `PaywallCopy`). */
+/** Legal pages: Swift `PaywallCopy.termsURL` / `privacyURL` (one definition, in the paywall). */
 object SettingsLinks {
-    const val termsURL = "https://plead-drab.vercel.app/terms/"
-    const val privacyURL = "https://plead-drab.vercel.app/privacy/"
+    const val termsURL = PaywallCopy.termsURL
+    const val privacyURL = PaywallCopy.privacyURL
 }
 
 /**

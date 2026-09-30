@@ -119,6 +119,7 @@ import app.plead.android.services.docketTitle
 import java.time.Instant
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import app.plead.android.features.settlement.SettlementFulfilment
 
 /**
  * The Home tab: Home with case records pushed on top (iOS `NavigationStack(path: $router.homePath)`).
@@ -551,7 +552,7 @@ fun OutstandingAgreementCard(
     val view = LocalView.current
     var working by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    val f = SettlementDocket.HomeFulfilment.of(settlement)
+    val f = SettlementFulfilment.of(settlement)
     val shape = RoundedCornerShape(PleadRadius.card)
     Box(modifier.fillMaxWidth()) {
         Column(Modifier.awCourtFile(PleadSpacing.l), verticalArrangement = Arrangement.spacedBy(PleadSpacing.s)) {

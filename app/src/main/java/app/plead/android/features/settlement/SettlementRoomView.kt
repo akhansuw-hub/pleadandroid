@@ -84,6 +84,7 @@ import app.plead.android.services.docketNumber
 import app.plead.android.services.statusTitle
 import java.util.UUID
 import kotlinx.coroutines.launch
+import app.plead.android.app.AppRouter
 
 /**
  * SETTLEMENT ROOM (brief §4), a sheet. Header + case title, a neutral context line, three suggestions
@@ -100,9 +101,18 @@ fun SettlementRoomView(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onSent: (() -> Unit)? = null,
+) = SettlementRoomView(caseId, model.store, model.router, onDismiss, modifier, onSent)
+
+/** The same room for callers holding the store and router (the summons' own sheet). */
+@Composable
+fun SettlementRoomView(
+    caseId: UUID,
+    store: CaseStore,
+    router: AppRouter,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    onSent: (() -> Unit)? = null,
 ) {
-    val store = model.store
-    val router = model.router
     val room = remember(caseId, store) {
         SettlementRoomModel(caseId, store).also { made ->
             if (made.mode == SettlementRoomModel.Mode.propose) store.trackSettlementEntry(caseId)

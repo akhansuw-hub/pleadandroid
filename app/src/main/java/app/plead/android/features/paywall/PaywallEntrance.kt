@@ -18,15 +18,11 @@
 // but drops every offset, scale and spring (opacity only). When the bloom plays, the settled paywall fades in under
 // the travelling lockup as before and these layers are placed at rest without animating: never both.
 //
-// Android: the onboarding grammar (`Features/Onboarding/OnboardingMotion.swift`) is wave 3b's; the values the
-// paywall reads from it are copied below with their source names, and `PleadRevealParameters` is the same type
-// (paywall-local until the integrator points both at one definition).
+// Android: `OnboardingMotionTokens` and `PleadRevealParameters` are the onboarding definitions
+// (features/onboarding/OnboardingMotion.kt), as in Swift.
 package app.plead.android.features.paywall
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -36,60 +32,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import app.plead.android.designsystem.accessibilityReduceMotion
-import app.plead.android.designsystem.swiftSpring
+import app.plead.android.features.onboarding.OnboardingMotionTokens
+import app.plead.android.features.onboarding.PleadRevealParameters
 import kotlinx.coroutines.delay
 
 enum class PaywallEntranceLayer { hero, brand, sub, tile, plan, cta, footer }
 
-/** The values of `OnboardingMotionTokens` (OnboardingMotion.swift, amendment r) the paywall entrance uses. */
-object OnboardingMotionTokensForPaywall {
-    const val headlineDuration = 0.32
-    const val bodyDelay = 0.14
-    const val bodyDuration = 0.28
-    const val cardDurationLowerBound = 0.36
-    const val cardDelay = 0.24
-    const val cardStagger = 0.12
-    const val ctaDelay = 0.60
-    const val ctaDuration = 0.28
-    const val headlineRise = 10f
-    const val bodyRise = 8f
-    const val cardRise = 12f
-    const val cardStartScale = 0.98f
-    const val cardBounce = 0.12
-
-    /** Reveals start here rather than at 0 so the view hit-tests and stays in the accessibility tree. */
-    const val revealStartOpacity = 0.001
-    val avatarSpring: List<Float> = listOf(0.97f, 1.03f, 1.0f)
-}
-
-/** The resolved entrance of one layer (Swift `PleadRevealParameters`, OnboardingMotion.swift). Pure. */
-data class PleadRevealParameters(
-    var delay: Double,
-    var duration: Double,
-    /** Points (dp); `height` is the rise. */
-    var offset: Size,
-    var startScale: Float,
-    var springy: Boolean,
-    var startOpacity: Double = OnboardingMotionTokensForPaywall.revealStartOpacity,
-) {
-    val end: Double get() = delay + duration
-    val isOpacityOnly: Boolean get() = offset == Size.Zero && startScale == 1f && !springy
-
-    /** `.spring(duration:bounce: 0.12)` or `.timingCurve(0.22, 1, 0.36, 1)`; the delay is applied by the caller. */
-    fun animationSpec(): AnimationSpec<Float> =
-        if (springy) {
-            swiftSpring(duration = duration.toFloat(), bounce = OnboardingMotionTokensForPaywall.cardBounce.toFloat())
-        } else {
-            tween(durationMillis = (duration * 1000).toInt(), easing = CubicBezierEasing(0.22f, 1f, 0.36f, 1f))
-        }
-}
-
 object PaywallEntranceTokens {
-    private val O = OnboardingMotionTokensForPaywall
+    private val O = OnboardingMotionTokens
 
     const val heroDuration = 0.36
     val heroStartScale: Float = O.cardStartScale            // 0.98
@@ -105,7 +59,7 @@ object PaywallEntranceTokens {
     val tileDuration = O.bodyDuration                       // 0.28
     const val planDelay = 0.40
     val planStagger = O.cardStagger                         // 0.12
-    val planDuration = O.cardDurationLowerBound             // 0.36
+    val planDuration = O.cardDuration.start                 // 0.36
     val ctaDelay = O.ctaDelay                               // 0.60
     val ctaDuration = O.ctaDuration                         // 0.28
 
@@ -132,31 +86,31 @@ object PaywallEntrance {
         val i = maxOf(index, 0).toDouble()
         val p = when (layer) {
             PaywallEntranceLayer.hero -> PleadRevealParameters(
-                delay = 0.0, duration = t.heroDuration, offset = Size(0f, t.heroRise), startScale = t.heroStartScale, springy = false,
+                delay = 0.0, duration = t.heroDuration, offset = Offset(0f, t.heroRise), startScale = t.heroStartScale, springy = false,
             )
             PaywallEntranceLayer.brand -> PleadRevealParameters(
-                delay = t.brandDelay, duration = t.brandDuration, offset = Size(0f, t.brandRise), startScale = 1f, springy = false,
+                delay = t.brandDelay, duration = t.brandDuration, offset = Offset(0f, t.brandRise), startScale = 1f, springy = false,
             )
             PaywallEntranceLayer.sub -> PleadRevealParameters(
-                delay = t.subDelay, duration = t.subDuration, offset = Size(0f, t.smallRise), startScale = 1f, springy = false,
+                delay = t.subDelay, duration = t.subDuration, offset = Offset(0f, t.smallRise), startScale = 1f, springy = false,
             )
             PaywallEntranceLayer.tile -> PleadRevealParameters(
                 delay = t.tileDelay + t.tileStagger * i, duration = t.tileDuration,
-                offset = Size(0f, t.smallRise), startScale = 1f, springy = false,
+                offset = Offset(0f, t.smallRise), startScale = 1f, springy = false,
             )
             PaywallEntranceLayer.plan -> PleadRevealParameters(
                 delay = t.planDelay + t.planStagger * i, duration = t.planDuration,
-                offset = Size(0f, t.planRise), startScale = t.heroStartScale, springy = true,
+                offset = Offset(0f, t.planRise), startScale = t.heroStartScale, springy = true,
             )
             PaywallEntranceLayer.cta -> PleadRevealParameters(
-                delay = t.ctaDelay, duration = t.ctaDuration, offset = Size(0f, t.smallRise), startScale = 1f, springy = false,
+                delay = t.ctaDelay, duration = t.ctaDuration, offset = Offset(0f, t.smallRise), startScale = 1f, springy = false,
             )
             PaywallEntranceLayer.footer -> PleadRevealParameters(
-                delay = t.footerDelay, duration = t.footerDuration, offset = Size(0f, t.smallRise), startScale = 1f, springy = false,
+                delay = t.footerDelay, duration = t.footerDuration, offset = Offset(0f, t.smallRise), startScale = 1f, springy = false,
             )
         }
         if (reduceMotion) {
-            p.offset = Size.Zero
+            p.offset = Offset.Zero
             p.startScale = 1f
             p.springy = false
         }
@@ -214,8 +168,8 @@ fun Modifier.paywallEntrance(layer: PaywallEntranceLayer, index: Int = 0): Modif
         val s = p.startScale + (1f - p.startScale) * v
         scaleX = s
         scaleY = s
-        translationX = p.offset.width * density * (1f - v)
-        translationY = p.offset.height * density * (1f - v)
+        translationX = p.offset.x * density * (1f - v)
+        translationY = p.offset.y * density * (1f - v)
     }
 }
 

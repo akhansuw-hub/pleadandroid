@@ -22,7 +22,7 @@ import java.util.UUID
 
 /**
  * Since amendment j the ruling no longer invents a sentence; the backend writes this fixed line and
- * the app shows the judgement instead. (Kept in sync by hand with `DemoTrialSimulator.judgementPendingSentence`.)
+ * the app shows the judgement instead. (`DemoTrialSimulator.judgementPendingSentence` reads this one.)
  */
 val Verdict.Companion.judgementPendingSentence: String get() = "The prevailing party will choose the court's judgement."
 
