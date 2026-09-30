@@ -1,28 +1,24 @@
-// Port of ArgueWin/Features/Court/CourtTabView.swift: the Court tab HOST (wave 2b).
+// Port of ArgueWin/Features/Court/CourtTabView.swift.
 //
-// Court tab: mounts the courtroom's `CourtroomScene` for the case in trial / deliberating / awaiting_verdict /
-// verdict, else `CourtroomEmptyState`. Amendment n: a case settled out of court stays on stage when routed here,
-// or when it settled from the trial and nothing else is in court (the judge's flavour line, the seal, "Back to
-// docket").
+// Court tab: mounts the courtroom's `CourtroomScene` for the case in trial / deliberating / awaiting_verdict / verdict,
+// else `CourtroomEmptyState`. Amendment n: a case settled out of court stays on stage when routed here, or when it
+// settled from the trial and nothing else is in court (the judge's flavour line, the seal, "Back to docket").
 //
-// Wave 2b ports the decision logic (which case, fixture vs live, the router-side actions, the fixture stage's
-// late-join and replay clocks). Wave 3a (courtroom/) replaces the two clearly labelled placeholders below:
-//   • `CourtroomScenePlaceholder(...)`  → `CourtroomScene(state = state(kase, me, partner, now), actions, entrance)`
-//     with `CourtroomState` built as in `CourtTabView.swift` `state(_:me:partner:now:)`, `CourtroomActions` from
-//     the store calls + the router actions in `CourtTabView` below, the `WidgetSnapshotStore.markVerdictOpened`
-//     task when `kase.isRevealed`, and `entranceMode` (`CourtFixtureStage.entranceMode`, see its doc).
-//   • `CourtroomEmptyStatePlaceholder()` → `CourtroomEmptyState()` (Courtroom/CourtTranscript.swift).
-//   • `CourtFixturePlaceholder(...)`    → `CourtroomScene(state = CourtFixtures…, actions = .noop, entrance)`.
-// After the wave-2a merge `CaseStore` implements `CourtTabStore` (every member already exists on it).
+// Wave 2b ported the decision logic (which case, fixture vs live, the router-side actions, the fixture stage's late-join
+// and replay clocks); wave 3a mounts the real courtroom. The integrator mounts `CourtTab(model)` as the Court tab body
+// in `MainTabScreen`.
+//
+// Android layout: the tab body ends above the tab bar, but the iOS court is laid out in the full screen (under the
+// status bar and the translucent tab bar). `CourtFullScreen` measures the body that much taller (drawn under the
+// paper-white tab bar, which MainTabScreen draws after it) and hands the scene the same insets iOS reads.
 package app.plead.android.features.court
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,28 +28,45 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import app.plead.android.app.AppModel
 import app.plead.android.app.AppRouter
 import app.plead.android.app.AppSheet
 import app.plead.android.app.AppTab
 import app.plead.android.app.DemoHarness
+import app.plead.android.courtroom.CourtEntranceMode
+import app.plead.android.courtroom.CourtFixtures
+import app.plead.android.courtroom.CourtInsets
+import app.plead.android.courtroom.CourtroomActions
+import app.plead.android.courtroom.CourtroomEmptyState
+import app.plead.android.courtroom.CourtroomLogic
+import app.plead.android.courtroom.CourtroomScene
+import app.plead.android.courtroom.CourtroomState
 import app.plead.android.designsystem.PleadColor
-import app.plead.android.designsystem.PleadType
 import app.plead.android.designsystem.awBackground
 import app.plead.android.models.Case
 import app.plead.android.models.CaseStatus
+import app.plead.android.models.JudgePersona
 import app.plead.android.models.Profile
+import app.plead.android.models.Role
 import app.plead.android.models.Settlement
+import app.plead.android.models.TrialPhase
+import app.plead.android.services.CaseStore
+import app.plead.android.services.PreviewData
+import app.plead.android.services.WidgetSnapshotStore
+import app.plead.android.services.court
+import app.plead.android.services.isRevealed
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.delay
 
-/** The `CaseStore` members the Court tab reads (Swift `@Environment(CaseStore.self)`). */
+/** The `CaseStore` members the Court tab's decision logic reads (Swift `@Environment(CaseStore.self)`). */
 interface CourtTabStore {
     val me: Profile?
     val partner: Profile?
@@ -91,8 +104,55 @@ object CourtTabView {
                 (c.closedAt ?: c.updatedAt).isAfter(now.minus(recentlySettledWindow))
         }
 
-    // MARK: Router-side actions (the store-side ones — submitTurn, raiseObjection, respondJudgement, markServed —
-    // are wired by wave 3a into `CourtroomActions`).
+    /** Amendment ac: the shared court entrance plays once per case (debug: `AWCourtEntrance`, see CourtFixtureStage). */
+    val entranceMode: CourtEntranceMode get() = CourtFixtureStage.entranceMode
+
+    /** Swift `state(_:me:partner:now:)`: the courtroom's input for a live case. */
+    fun state(store: CaseStore, kase: Case, me: Profile, partner: Profile, now: Instant): CourtroomState {
+        val exhibits = store.exhibits(kase.id)
+        val turns = store.turns(kase.id)
+        val ids = exhibits.map { it.id }.toSet()
+        return CourtroomState(
+            kase = kase,
+            turns = turns,
+            exhibits = exhibits,
+            me = me,
+            partner = partner,
+            myRole = kase.role(me.id),
+            exhibitURLs = store.exhibitURLs.filterKeys { it in ids },
+            now = now,
+            verdict = if (kase.isRevealed) store.verdict(kase.id) else null,
+            judgePersona = store.couple?.judgePersona ?: JudgePersona.wigsworth,
+            deliberationProgress = kase.panelProgress,
+            judgement = if (kase.isRevealed) store.judgement(kase.id) else null,
+            settlement = store.settlement(kase.id),
+            settlementOffer = store.latestOffer(kase.id),
+            canProposeSettlement = store.canProposeSettlement(kase.id),
+            // Amendment ac: the other side's podium stays empty until they have joined (spoken in the trial).
+            presentRoles = CourtroomLogic.presentRoles(kase = kase, turns = turns, myRole = kase.role(me.id)),
+        )
+    }
+
+    /** Swift `actions`: the store calls and the router actions for the case on stage. */
+    fun actions(store: CaseStore, router: AppRouter, caseId: () -> UUID?): CourtroomActions = CourtroomActions(
+        submitTurn = { body, exhibitId ->
+            caseId()?.let { store.submitTurn(caseId = it, body = body, exhibitId = exhibitId) }
+        },
+        raiseObjection = { exhibitId, reason ->
+            caseId()?.let { store.raiseObjection(caseId = it, exhibitId = exhibitId, reason = reason) }
+        },
+        // Amendment j: the verdict sequence's CHOOSE JUDGEMENT presents screen B as a root sheet.
+        chooseJudgement = { chooseJudgement(router, caseId()) },
+        respondJudgement = { accept -> caseId()?.let { store.respondJudgement(caseId = it, accept = accept) } },
+        markServed = { caseId()?.let { store.markServed(caseId = it) } },
+        // Amendment n: propose → the Settlement Room; open → the response sheet when an offer waits for me, else the
+        // room (its waiting / withdraw view).
+        proposeSettlement = { proposeSettlement(router, caseId()) },
+        openSettlement = { openSettlement(store.court, router, caseId()) },
+        backToDocket = { backToDocket(router) },
+    )
+
+    // MARK: Router-side actions
 
     /** Amendment j: the verdict sequence's CHOOSE JUDGEMENT presents screen B as a root sheet. */
     fun chooseJudgement(router: AppRouter, caseId: UUID?) {
@@ -118,19 +178,60 @@ object CourtTabView {
     }
 }
 
+/** Height of `PleadTabBar` above the navigation bar (49 dp row + the 0.5 dp hairline), which the court draws under. */
+object CourtTabLayout {
+    val tabBarHeight = 49.5.dp
+}
+
+/**
+ * The Court tab body, for `MainTabScreen` (`AppTab.court -> CourtTab(model)`): the courtroom for the case in court,
+ * the closed court otherwise, or a debug fixture stage.
+ */
+@Composable
+fun CourtTab(model: AppModel, modifier: Modifier = Modifier) {
+    CourtTabView(store = model.store, router = model.router, modifier = modifier)
+}
+
 /** Court tab. Debug builds with `AWCourtFixture` show a fixed fixture stage instead of the live court. */
 @Composable
-fun CourtTabView(store: CourtTabStore, router: AppRouter, modifier: Modifier = Modifier) {
-    val fixture = CourtFixtureStage.requested
-    if (fixture != null) {
-        CourtFixtureStage(name = fixture, modifier = modifier)
-    } else {
-        CourtTabLive(store, router, modifier)
+fun CourtTabView(store: CaseStore, router: AppRouter, modifier: Modifier = Modifier) {
+    CourtFullScreen(modifier) { insets ->
+        val fixture = CourtFixtureStage.requested
+        if (fixture != null) {
+            CourtFixtureStage(name = fixture, insets = insets)
+        } else {
+            CourtTabLive(store, router, insets)
+        }
+    }
+}
+
+/**
+ * Lays [content] out in the full screen: the body measured `CourtTabLayout.tabBarHeight` + the navigation bar taller
+ * than the space it is given (drawn under the tab bar), with the status bar and that bleed as `CourtInsets`.
+ */
+@Composable
+fun CourtFullScreen(modifier: Modifier = Modifier, content: @Composable (CourtInsets) -> Unit) {
+    val density = LocalDensity.current
+    val top = WindowInsets.statusBars.getTop(density) / density.density
+    val bleed = CourtTabLayout.tabBarHeight.value + WindowInsets.navigationBars.getBottom(density) / density.density
+    Box(
+        modifier
+            .layout { measurable, constraints ->
+                val extra = bleed.dp.roundToPx()
+                val w = constraints.maxWidth
+                val h = constraints.maxHeight
+                val p = measurable.measure(Constraints.fixed(w, h + extra))
+                layout(w, h) { p.place(0, 0) }
+            }
+            .fillMaxSize()
+            .background(PleadColor.courtBackdrop),
+    ) {
+        content(CourtInsets(top = top, bottom = bleed))
     }
 }
 
 @Composable
-private fun CourtTabLive(store: CourtTabStore, router: AppRouter, modifier: Modifier) {
+private fun CourtTabLive(store: CaseStore, router: AppRouter, insets: CourtInsets) {
     // `TimelineView(.periodic(from: .now, by: 30))`: `now` drives pure logic only (deadline passed etc.); the dock
     // countdown ticks itself.
     val now by produceState(Instant.now()) {
@@ -139,15 +240,26 @@ private fun CourtTabLive(store: CourtTabStore, router: AppRouter, modifier: Modi
             value = Instant.now()
         }
     }
-    val kase = CourtTabView.kase(store, router.courtCaseId, now)
+    val kase = CourtTabView.kase(store.court, router.courtCaseId, now)
     val me = store.me
     val partner = store.partner
     if (kase != null && me != null && partner != null) {
         key(kase.id) {
-            CourtroomScenePlaceholder(kase = kase, me = me, partner = partner, now = now, modifier = modifier)
+            val caseId = kase.id
+            val actions = remember(store, router, caseId) { CourtTabView.actions(store, router) { caseId } }
+            CourtroomScene(
+                state = CourtTabView.state(store, kase, me, partner, now),
+                actions = actions,
+                entrance = CourtTabView.entranceMode,
+                insets = insets,
+            )
+            // Widgets / the court-session notification: a revealed verdict shown in court counts as opened.
+            LaunchedEffect("${kase.id}-${kase.status.rawValue}") {
+                if (kase.isRevealed) WidgetSnapshotStore.shared.markVerdictOpened(kase.id)
+            }
         }
     } else {
-        CourtroomEmptyStatePlaceholder(modifier.fillMaxSize().awBackground())
+        CourtroomEmptyState(modifier = Modifier.fillMaxSize().awBackground(), insets = insets)
     }
 }
 
@@ -156,16 +268,25 @@ private fun CourtTabLive(store: CourtTabStore, router: AppRouter, modifier: Modi
  * Court tab on a fixed `CourtFixtures` state (Aria v Sam). `replay` plays the record one turn at a time
  * (`AWCourtReplayFrom 3`, `AWCourtReplayStep 1.6`). Debug builds only (DemoHarness returns null in release).
  *
- * Entrance captures (amendment ac): `AWCourtEntrance replay` plays the shared court entrance on every open;
- * `late` also replays, with the defendant absent until ~3.2 s in; `<seconds>` freezes it that far in. Case call
- * (amendment ad): `caseCall` holds the NOW HEARING card, `introduction` the judge's introduction. The mapping to
- * 3a's `CourtEntranceMode` (Swift `CourtFixtureStage.entranceMode`):
- *   null → auto · "replay" / "late" → replay · "caseCall" → holdCaseCall · "introduction" → holdIntroduction ·
- *   a number → hold(seconds) · anything else → auto.
+ * Entrance captures (amendment ac): `AWCourtEntrance replay` plays the shared court entrance on every open (live court
+ * or fixture); `late` also replays, with the defendant absent until ~3.2 s in, when they walk in; `<seconds>` (e.g.
+ * `0.1`, `0.6`, `1.3`, `2.2`) freezes it that far in for stills. Case call (amendment ad): `replay` / `late` also call
+ * the case after the entrance; `caseCall` holds the ready court on the NOW HEARING card, `introduction` on the judge's
+ * fully revealed introduction (stills; taps ignored).
  */
 object CourtFixtureStage {
     val requested: String? get() = DemoHarness.courtFixture
     val entranceFlag: String? get() = DemoHarness.courtEntrance
+
+    val entranceMode: CourtEntranceMode
+        get() {
+            val f = entranceFlag ?: return CourtEntranceMode.auto
+            if (f == "replay" || f == "late") return CourtEntranceMode.replay
+            if (f == "caseCall") return CourtEntranceMode.holdCaseCall
+            if (f == "introduction") return CourtEntranceMode.holdIntroduction
+            f.toDoubleOrNull()?.let { return CourtEntranceMode.hold(it) }
+            return CourtEntranceMode.auto
+        }
 
     /** `AWCourtEntrance <seconds>`: the hold time, when the flag is a number (Swift `TimeInterval(f)`). */
     val entranceHoldSeconds: Double? get() = entranceFlag?.toDoubleOrNull()
@@ -176,16 +297,37 @@ object CourtFixtureStage {
     /** Seconds between replayed turns: `AWCourtReplayStep` when > 0, else 1.6. */
     val replayStep: Double get() = DemoHarness.courtReplayStep.let { if (it > 0) it else 1.6 }
 
-    /** Swift `state` switch: the fixture names 3a maps to `CourtFixtures` states (anything else = replay). */
+    /** The fixture names mapped to `CourtFixtures` states (anything else = replay). */
     val fixtureNames = listOf("opening", "evidence", "cross", "ruling", "deliberation", "verdict", "replay")
+
+    /** Swift `state`: the fixed state for [name] (`count` = the replay's turns so far). */
+    fun state(name: String, count: Int): CourtroomState = when (name) {
+        "opening" -> CourtFixtures.state(TrialPhase.plaintiffOpening, owner = Role.plaintiff, turns = 1)
+        "evidence" -> CourtFixtures.state(TrialPhase.plaintiffExhibits, owner = Role.defendant, turns = 6)
+        "cross" -> CourtFixtures.crossExam
+        "ruling" -> CourtFixtures.state(TrialPhase.plaintiffExhibits, owner = Role.plaintiff, turns = 8)
+        "deliberation" -> CourtFixtures.deliberating
+        "verdict" -> CourtFixtures.verdictIn
+        else -> replayState(count)
+    }
+
+    /** replay: the phase of the newest turn; the floor with the side that speaks next. */
+    fun replayState(count: Int): CourtroomState {
+        val turns = CourtFixtures.allTurns.take(count)
+        val phase = turns.lastOrNull()?.phase ?: TrialPhase.plaintiffOpening
+        val next = CourtFixtures.allTurns.drop(count).firstOrNull()
+        val owner: Role = next?.let { CourtroomLogic.role(it.speaker) } ?: phase.speakingSide ?: Role.plaintiff
+        return CourtFixtures.state(phase, owner = owner, turns = count)
+    }
+
+    /** `AWCourtEntrance late`: the defendant has not joined until the late task flips. */
+    fun lateState(s: CourtroomState, lateJoined: Boolean): CourtroomState =
+        if (entranceFlag == "late" && !lateJoined) s.copy(presentRoles = setOf(Role.plaintiff)) else s
 }
 
-/**
- * The fixture stage. [totalTurns] is `CourtFixtures.allTurns.size` (wave 3a); until then the replay clock has no
- * record to step through and holds at its first count.
- */
+/** The fixture stage (`CourtFixtures`, no-op actions). */
 @Composable
-fun CourtFixtureStage(name: String, modifier: Modifier = Modifier, totalTurns: Int? = null) {
+fun CourtFixtureStage(name: String, modifier: Modifier = Modifier, insets: CourtInsets = CourtInsets.zero) {
     var count by remember { mutableIntStateOf(CourtFixtureStage.replayFrom) }
     var lateJoined by remember { mutableStateOf(false) }
     LaunchedEffect("late") {
@@ -194,77 +336,29 @@ fun CourtFixtureStage(name: String, modifier: Modifier = Modifier, totalTurns: I
         lateJoined = true
     }
     LaunchedEffect(name) {
-        if (name != "replay" || totalTurns == null) return@LaunchedEffect
-        while (count < totalTurns - 1) {
+        if (name != "replay") return@LaunchedEffect
+        while (count < CourtFixtures.allTurns.size - 1) {
             delay((CourtFixtureStage.replayStep * 1000).toLong())
             count += 1
         }
     }
-    // `AWCourtEntrance late`: the defendant has not joined until the late task flips (presentRoles = [.plaintiff]).
-    val defendantPresent = CourtFixtureStage.entranceFlag != "late" || lateJoined
-    CourtFixturePlaceholder(name = name, count = count, defendantPresent = defendantPresent, modifier = modifier)
-}
-
-// MARK: - Placeholders (wave 3a replaces these)
-
-/** PLACEHOLDER for `CourtroomScene` (wave 3a). */
-@Composable
-fun CourtroomScenePlaceholder(kase: Case, me: Profile, partner: Profile, now: Instant, modifier: Modifier = Modifier) {
-    CourtPlaceholder(
-        title = kase.title,
-        lines = listOf("CourtroomScene · ${kase.status.rawValue}", "${me.displayName} v. ${partner.displayName}", "Port wave 3a"),
+    CourtroomScene(
+        state = CourtFixtureStage.lateState(CourtFixtureStage.state(name, count), lateJoined),
+        actions = CourtroomActions.noop,
         modifier = modifier,
+        entrance = CourtFixtureStage.entranceMode,
+        insets = insets,
     )
 }
 
-/** PLACEHOLDER for `CourtroomEmptyState` (wave 3a). */
+@Preview(name = "Court · trial", widthDp = 402, heightDp = 874)
 @Composable
-fun CourtroomEmptyStatePlaceholder(modifier: Modifier = Modifier) {
-    Box(modifier, contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Court", style = PleadType.displayL, color = PleadColor.text)
-            Text("CourtroomEmptyState · Port wave 3a", style = PleadType.metadata, color = PleadColor.subtleText)
-        }
-    }
+private fun CourtTabTrialPreview() {
+    CourtTabView(store = remember { PreviewData.store() }, router = remember { AppRouter() })
 }
 
-/** PLACEHOLDER for the fixture `CourtroomScene` (wave 3a). */
-@Composable
-fun CourtFixturePlaceholder(name: String, count: Int, defendantPresent: Boolean, modifier: Modifier = Modifier) {
-    CourtPlaceholder(
-        title = "Fixture: $name",
-        lines = listOf(
-            "turns $count · defendant ${if (defendantPresent) "present" else "absent"}",
-            "entrance ${CourtFixtureStage.entranceFlag ?: "auto"}",
-            "Port wave 3a",
-        ),
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun CourtPlaceholder(title: String, lines: List<String>, modifier: Modifier) {
-    Box(modifier.fillMaxSize().background(PleadColor.courtBackdrop).padding(24.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = PleadType.displayM, color = PleadColor.cream, textAlign = TextAlign.Center)
-            lines.forEach { Text(it, style = PleadType.metadata, color = PleadColor.cream.copy(alpha = 0.7f), textAlign = TextAlign.Center) }
-        }
-    }
-}
-
-@Preview(name = "Court · empty", widthDp = 402, heightDp = 700)
+@Preview(name = "Court · empty", widthDp = 402, heightDp = 874)
 @Composable
 private fun CourtTabEmptyPreview() {
-    val store = remember {
-        object : CourtTabStore {
-            override val me: Profile? = null
-            override val partner: Profile? = null
-            override val courtroomCase: Case? = null
-            override val closedCases: List<Case> = emptyList()
-            override fun caseById(id: UUID): Case? = null
-            override fun settlement(caseId: UUID): Settlement? = null
-            override fun pendingSettlementForMe(caseId: UUID): Boolean = false
-        }
-    }
-    CourtTabView(store = store, router = remember { AppRouter() })
+    CourtTabView(store = remember { PreviewData.emptyStore() }, router = remember { AppRouter() })
 }
