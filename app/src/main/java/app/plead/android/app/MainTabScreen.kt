@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -149,6 +150,8 @@ fun PleadTabBar(selected: AppTab, onSelect: (AppTab) -> Unit, modifier: Modifier
     val unselected = PleadColor.cocoa.copy(alpha = 0.72f)
     Column(
         modifier
+            // UI tests: the bar's frame (iOS `app.tabBars.firstMatch`); the bar itself has no other semantics.
+            .testTag("tabBar")
             .fillMaxWidth()
             .background(PleadColor.paperWhite.copy(alpha = 0.96f))
             .windowInsetsPadding(WindowInsets.navigationBars),
