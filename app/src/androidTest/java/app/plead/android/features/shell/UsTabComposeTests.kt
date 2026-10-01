@@ -53,6 +53,9 @@ class UsTabComposeTests : PleadComposeTestCase() {
         assertTrue("The last judge row is under the tab bar ($chaosBottom > $tabBarTop)", chaosBottom <= tabBarTop + oneDp)
         // Settle at the bottom of the list (iOS also attaches a screenshot here: "us-judges-scrolled").
         first(hasScrollAction() and hasAnyDescendant(tagged("us.judge.chaos"))).performTouchInput { swipeUp() }
+        // Let the fling and the overscroll stretch settle on the test clock. Left mid-stretch at the end of the test,
+        // the edge effect redraws every frame and ActivityScenario.close() (waitForIdleSync) never returns on a device.
+        rule.waitForIdle()
     }
 
     /** A paid user whose partner has not joined: link step → "Continue on my own" → demo purchase → tabs → Us. */

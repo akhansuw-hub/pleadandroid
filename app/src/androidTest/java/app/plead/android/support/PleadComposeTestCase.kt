@@ -21,7 +21,8 @@
 //
 // The clock: by default the Compose main clock advances by itself and waits poll with `ComposeTestRule.waitUntil`.
 // Suites that pass `manualClock = true` (onboarding, partner code) drive it by hand: every poll moves it
-// [POLL_STEP_MS] (three frames) and sleeps 4 ms of real time for work off the Compose clock. The link celebration's
+// [POLL_STEP_MS] (three frames) and sleeps 4 ms of real time for work off the Compose clock, and a timeout only runs
+// out once it has passed on that clock as well as in real time (see `poll`). The link celebration's
 // hearts run a frame loop forever, which never lets an auto-advancing clock go idle, and a manual clock keeps the mock
 // trial deterministic (a busy screen cannot fast-forward it past the beat a test is waiting for).
 package app.plead.android.support
@@ -57,6 +58,7 @@ import app.plead.android.features.paywall.PaywallOpeningRule
 import app.plead.android.services.UserDefaults
 import app.plead.android.widgets.WidgetPreviewOverlay
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Rule
@@ -151,11 +153,24 @@ abstract class PleadComposeTestCase(
         return made
     }
 
+    /**
+     * A fresh install for every test. The model gets [defaults], but a few services still read the process-wide suites
+     * (`UserDefaults.standard`: the court entrance seen per case, celebrated settlements, launch state, paywall
+     * opening, review prompt; `UserDefaults.appGroup`: the widget snapshot). On a device those are DataStore files that
+     * outlive a test (the whole run shares one process and one install), so they are emptied before and after each.
+     */
+    @Before fun resetPersistentDefaults() = clearPersistentDefaults()
+
+    private fun clearPersistentDefaults() {
+        for (suite in listOf(UserDefaults.standard, UserDefaults.appGroup)) suite.keys.forEach(suite::removeObject)
+    }
+
     /** Stops the demo simulator and clears the process-wide flags so nothing leaks into the next test. */
     @After fun tearDownPleadApp() {
         runCatching { rule.runOnUiThread { current?.store?.demo?.cancelAll() } }
         LaunchArguments.set(emptyMap())
         PaywallOpeningRule.shownThisLaunch = false
+        clearPersistentDefaults()
     }
 
     // MARK: Matchers (PleadUITestCase.element…)
@@ -309,11 +324,19 @@ abstract class PleadComposeTestCase(
         return poll(timeoutMs, if (manualClock) POLL_STEP_MS else stepMs, check)
     }
 
+    /**
+     * Polls [check], moving the clock [stepMs] each time, until it holds or [timeoutMs] has passed both on the clock
+     * (the time the app's animations and scripted delays see) and in real time (work off the Compose clock). On a
+     * device a poll (tree fetch + frame) costs more real time than the [stepMs] it moves the clock, and the cost varies
+     * with load: a real-time limit alone gave the mock trial anywhere from 37 s to 57 s of its ~55 s script within the
+     * same 90 s timeout. iOS waits on one clock, so the app always gets the full timeout there.
+     */
     private fun poll(timeoutMs: Long, stepMs: Long, check: () -> Boolean): Boolean {
         val end = System.nanoTime() + timeoutMs * 1_000_000
+        val clockEnd = rule.mainClock.currentTime + timeoutMs
         while (true) {
             if (check()) return true
-            if (System.nanoTime() > end) return check()
+            if (System.nanoTime() > end && rule.mainClock.currentTime >= clockEnd) return check()
             rule.mainClock.advanceTimeBy(stepMs)
             // Real time for what runs off the Compose clock (viewModelScope on Dispatchers.Main, auth callbacks).
             if (manualClock) Thread.sleep(4)

@@ -15,12 +15,13 @@ integrator (wave 4) keeps the summary current. Brief: [PORT.md](PORT.md).
   drive all of it on the emulator; screenshots in [screenshots/](screenshots/).
 - **Build (final):** `assembleDebug` + `assembleRelease` (unsigned: no release signing config, see "Needs the user")
   OK; JVM tests 804 run, 0 failures; lint 0 errors (42 warnings, 5 hints); Compose tests on the `visage_phone`
-  emulator (API 35) 8 run, 0 failures; backend `deno check` clean, `deno test` 279 passed, 0 failed.
+  emulator (API 35) 51 run, 50 passed, 1 skipped, 0 failures; backend `deno check` clean, `deno test` 279 passed, 0 failed.
 - **Compose UI tests:** every ArgueWinUITests suite is ported: 43 instrumented tests under
   `src/androidTest/.../features/{court,shell,onboarding}/` on one shared support package (see "Compose UI tests"
-  below), next to the 8 earlier smoke tests. Compiled and run under Robolectric only; **not yet run on a device or
-  emulator** (`connectedDebugAndroidTest`).
-- **Owed:** a device / emulator run of those 43 Compose UI tests, and the small visual gaps listed under Wave 4.
+  below), next to the 8 earlier smoke tests. Run on the `visage_phone` emulator (Pixel 7, API 35,
+  `connectedDebugAndroidTest`): 51 run, 50 passed, 1 skipped (`testDefenceDueOpensTheDefenceFlow`, an assumption, as
+  on iOS), 0 failed, three full runs in a row (~10 min each).
+- **Owed:** the small visual gaps listed under Wave 4.
 - **Needs the user:** see the last section.
 
 ## Wave 1: skeleton (done)
@@ -435,8 +436,26 @@ Compose `testTag`, its "label" the content description / text. The onboarding an
 clock by hand (`PleadComposeTestCase(manualClock = true)`): the link celebration's hearts run a frame loop forever, and
 the mock trial must not fast-forward past the beat a test waits for.
 
-**Status:** compiled (`compileDebugAndroidTestKotlin`) and run under Robolectric (the files copied into the JVM test
-set, 411x915 dp, not committed), twice: 42 passed, 1 skipped, 0 failed each time. **Not yet run on a device or emulator.**
+**Status:** run on the `visage_phone` emulator (Pixel 7, API 35, headless, animation scales at the default 1) with
+`./gradlew --no-daemon :app:connectedDebugAndroidTest`: 51 tests (these 43 + the 8 smoke tests), **50 passed, 1 skipped,
+0 failed**, three full runs in a row (624 s, 599 s, 601 s of test time). No test is `@Ignore`d; the one skip is
+`testDefenceDueOpensTheDefenceFlow` (below). The mock-trial suites dominate (each plays ~55 s of trial; the onboarding
+class takes ~7 min). Earlier they ran under Robolectric only (42 passed, 1 skipped).
+
+Fixed for the device (tests and support only; no app change was needed):
+- **Teardown hang** (`UsTabComposeTests.testPairRecordAndPresidingJudge`): the test ended on a `swipeUp()` at the
+  bottom of the judge list. Left mid-stretch, the overscroll edge effect redraws every frame (~130 ms a frame on the
+  emulator's software GPU), so the main looper never idles and `ActivityScenario.close()` (`waitForIdleSync`) waited
+  forever. The test now lets the fling settle (`waitForIdle`) before it ends.
+- **Mock-trial timing** (`testResumesOnTheMockTrialAfterRelaunch` failed 1 in 4): manual-clock waits timed out in real
+  time while the trial runs on the test clock, and a poll costs more real time than the 48 ms it moves the clock, by a
+  varying amount (90 s of real time gave the trial 37–57 s of its ~55 s script). `poll` now runs out only when the
+  timeout has passed on the test clock **and** in real time, the way iOS waits on a single clock.
+- **Leftover state:** a few services read `UserDefaults.standard` / `UserDefaults.appGroup` directly (court entrance
+  seen per case, celebrated settlements, launch state, paywall opening, review prompt, widget snapshot). On a device
+  those DataStore files outlive a test, so the support empties both suites before and after every test. Notification
+  permission and widget detection never touch real device state: every flow that meets those steps launches with
+  `AWPermissions fresh` / `AWWidgetDetected NO`.
 
 Android vs iOS, on purpose:
 - No Privacy & tracking step (amendment az: no ATT): onboarding has 11 screens ("Step N of 11"); where iOS passes the
