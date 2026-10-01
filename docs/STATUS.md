@@ -16,8 +16,11 @@ integrator (wave 4) keeps the summary current. Brief: [PORT.md](PORT.md).
 - **Build (final):** `assembleDebug` + `assembleRelease` (unsigned: no release signing config, see "Needs the user")
   OK; JVM tests 804 run, 0 failures; lint 0 errors (42 warnings, 5 hints); Compose tests on the `visage_phone`
   emulator (API 35) 8 run, 0 failures; backend `deno check` clean, `deno test` 279 passed, 0 failed.
-- **Owed:** Compose UI tests for the rest of ArgueWinUITests (onboarding walk-through, filing, courtroom flows; only
-  the shell smoke tests exist), and the small visual gaps listed under Wave 4.
+- **Compose UI tests:** every ArgueWinUITests suite is ported: 43 instrumented tests under
+  `src/androidTest/.../features/{court,shell,onboarding}/` on one shared support package (see "Compose UI tests"
+  below), next to the 8 earlier smoke tests. Compiled and run under Robolectric only; **not yet run on a device or
+  emulator** (`connectedDebugAndroidTest`).
+- **Owed:** a device / emulator run of those 43 Compose UI tests, and the small visual gaps listed under Wave 4.
 - **Needs the user:** see the last section.
 
 ## Wave 1: skeleton (done)
@@ -351,7 +354,8 @@ Resolved in the final integration (see below): 3f merged, `AppModel.courtSession
 `OnboardingWidgetArt.kt` removed, `AWWidgetPreview` / `AWLiveActivity` screens, widget screenshots.
 
 Still owed:
-- Compose UI tests for the rest of ArgueWinUITests (onboarding walk-through, filing, courtroom flows) — only the shell smoke tests exist.
+- Compose UI tests for the rest of ArgueWinUITests: ported since (see "Compose UI tests"); a device run is still owed.
+
 ## Wave 3f: widgets, FCM push, court-session notification, review prompt, backend (done)
 
 | iOS | Android | Notes |
@@ -413,6 +417,44 @@ Open (not fixed):
   notifications. Raising it (default importance + `setSilent`) would put it with the others and on the status bar;
   a product call, left as 3f built it.
 - Onboarding's widget illustration (Compose, not a real widget) still tail-truncates "The Dinner Incid…" at 16e-like widths.
+
+## Compose UI tests (ArgueWinUITests port)
+
+| iOS | Android (`src/androidTest/java/app/plead/android/`) | Tests |
+|---|---|---|
+| `PleadUITestCase.swift` | `support/PleadComposeTestCase.kt` (base class: launch, lookups, waits, taps, gate flows), `support/OnboardingFlows.kt` (`Onboarding` keys, `onboardingStep`, `passMockTrial`, `passSummonsIntro`, `skipMockTrialFromInvitation`, `walkOnboarding`, `progressLabel`, `assertNoPrivacyStep`) | |
+| `TrialFlowTests`, `SettlementFlowTests` | `features/court/TrialFlowComposeTests`, `SettlementFlowComposeTests` | 2 + 2 |
+| (owed filing / courtroom coverage, Android-only) | `features/court/FileCaseComposeTests` (File a case step by step to a served summons), `CourtFixtureComposeTests` (every `AWCourtFixture` renders and offers its dock's primary control) | 1 + 8 |
+| `PaywallGateTests`, `PartnerPaidTests`, `HomeTests`, `DocketTests`, `SettingsSmokeTests`, `UsTabTests` | `features/shell/*ComposeTests` | 5 + 1 + 3 + 5 + 1 + 2 |
+| `OnboardingFlowTests`, `PartnerCodeTests` | `features/onboarding/*ComposeTests` | 9 + 4 |
+
+43 tests (plus the earlier `ComponentsComposeTests` / `AppShellComposeTests` smoke tests). Each test builds the demo
+`AppModel` from the same launch flags the way `PleadApplication` + `MainActivity` do (on in-memory defaults) and shows
+MainActivity's content; a second `launch` in a test is a relaunch on the same defaults. XCUITest's "identifier" is the
+Compose `testTag`, its "label" the content description / text. The onboarding and partner-code suites drive the Compose
+clock by hand (`PleadComposeTestCase(manualClock = true)`): the link celebration's hearts run a frame loop forever, and
+the mock trial must not fast-forward past the beat a test waits for.
+
+**Status:** compiled (`compileDebugAndroidTestKotlin`) and run under Robolectric (the files copied into the JVM test
+set, 411x915 dp, not committed), twice: 42 passed, 1 skipped, 0 failed each time. **Not yet run on a device or emulator.**
+
+Android vs iOS, on purpose:
+- No Privacy & tracking step (amendment az: no ATT): onboarding has 11 screens ("Step N of 11"); where iOS passes the
+  Privacy screen (`testTrackingFollowsNotificationsThenWidgets`, the partner-code flows) the Android tests assert it
+  never shows.
+- `testEnterCodeOnPartnerStepEndsOnPartnerPaid` secures the account with **Google** (`secure.google`), the first
+  option on Android's SecureAccountView; the shell suites still use the demo `secure.apple`.
+- The photo / screenshot exhibit path is not covered: it goes through the system Photo Picker, outside the app's
+  Compose hierarchy (`FileCaseComposeTests` adds a quote exhibit instead).
+- XCTest screenshot attachments (`us-judges-scrolled`, `us-solo`, `partner-code-linked`) are dropped: a Compose test has
+  no attachment store.
+- `testDefenceDueOpensTheDefenceFlow` is skipped (assumption) until DemoHarness has an `AWDemoStore defence` store, as
+  on iOS.
+- iOS identifiers without an Android tag are found by what the node speaks: `settlement.accept` / `.propose` /
+  `.suggestion`, `judgement.option` / `.deliver`.
+- 21 `testTag`s used to sit after `clearAndSetSemantics` on the same node, which wipes them (onboarding mock-trial
+  cards, progress rail, versus card, identity preview, court panel, case previews, court help close / example /
+  deadline, case call, Rest…); the tag now comes before it, and the tests use the iOS identifiers again.
 
 ## Deviations from the brief (for the integrator / user)
 

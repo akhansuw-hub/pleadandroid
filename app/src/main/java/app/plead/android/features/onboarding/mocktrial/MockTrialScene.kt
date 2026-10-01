@@ -813,13 +813,13 @@ fun MockTrialBubble(
                 transformOrigin = TransformOrigin(0.5f, if (isJudge) 1f else 0f)
                 translationY = if (still) 0f else ((1f - e) * MockTrialTiming.bubbleRise).dp.toPx()
             }
+            .testTag(if (isCurrent) "onboarding.mockTrial.bubble" else "onboarding.mockTrial.previous")
             .clearAndSetSemantics {
                 if (isCurrent) {
                     contentDescription = line.accessibilityText
                     onClick(label = "Next part of the demo") { onAccessibilityAdvance(); true }
                 }
-            }
-            .testTag(if (isCurrent) "onboarding.mockTrial.bubble" else "onboarding.mockTrial.previous"),
+            },
     ) {
         val role = line.role
         if (role == null) JudgeLineBubble(line, reveal) else PartyLineBubble(line, role, tailX, reveal)
@@ -900,10 +900,10 @@ fun MockTrialClaimCard(modifier: Modifier = Modifier) {
                 strokeBorder(r.toPx(), inset = 3.dp.toPx(), width = 1.dp.toPx(), color = PleadColor.gold.copy(alpha = 0.45f))
                 strokeBorder(r.toPx(), inset = 0f, width = 1.5.dp.toPx(), color = PleadColor.cocoa.copy(alpha = 0.8f))
             }
+            .testTag("onboarding.mockTrial.claim")
             .clearAndSetSemantics {
                 contentDescription = "${MockTrialScript.sentence(MockTrialScript.claimLabel)}: ${MockTrialScript.claimText}"
-            }
-            .testTag("onboarding.mockTrial.claim"),
+            },
     ) {
         Column(
             Modifier.fillMaxWidth().padding(start = 18.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
@@ -943,8 +943,8 @@ fun MockTrialExhibitCard(exhibit: MockTrialExhibit, modifier: Modifier = Modifie
             .pleadShadow(Color.Black.copy(alpha = 0.35f), radius = 8.dp, y = 4.dp, shape = shape)
             .background(PleadColor.paperWhite, shape)
             .drawBehind { strokeBorder(r.toPx(), inset = 0f, width = 1.5.dp.toPx(), color = PleadColor.cocoa.copy(alpha = 0.85f)) }
-            .clearAndSetSemantics { contentDescription = exhibit.accessibilityText }
             .testTag("onboarding.mockTrial.exhibit")
+            .clearAndSetSemantics { contentDescription = exhibit.accessibilityText }
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -1080,8 +1080,8 @@ fun MockTrialDeliberationPanel(ticked: Int, modifier: Modifier = Modifier) {
         modifier
             .pleadShadow(Color.Black.copy(alpha = 0.4f), radius = 18.dp, y = 8.dp, shape = RoundedCornerShape(PleadRadius.card))
             .goldFrame()
-            .clearAndSetSemantics { contentDescription = MockTrialScript.deliberationAccessibilityText }
             .testTag("onboarding.mockTrial.deliberation")
+            .clearAndSetSemantics { contentDescription = MockTrialScript.deliberationAccessibilityText }
             .padding(PleadSpacing.l),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(PleadSpacing.m),
@@ -1179,10 +1179,10 @@ fun MockTrialVerdictCard(modifier: Modifier = Modifier) {
             .clip(shape)
             .background(PleadColor.paperWhite)
             .drawWithBorders(r.value, goldInset = 3f, goldAlpha = 0.6f)
+            .testTag("onboarding.mockTrial.verdict")
             .clearAndSetSemantics {
                 contentDescription = "${MockTrialScript.sentence(MockTrialScript.verdictTitle)}. ${MockTrialScript.verdictReason}"
-            }
-            .testTag("onboarding.mockTrial.verdict"),
+            },
     ) {
         Row(
             Modifier.fillMaxWidth().background(OnboardingPalette.burgundy).padding(vertical = 4.dp),
@@ -1316,11 +1316,11 @@ fun MockTrialClosedCard(modifier: Modifier = Modifier) {
             .pleadShadow(Color.Black.copy(alpha = 0.4f), radius = 16.dp, y = 8.dp, shape = shape)
             .background(PleadColor.paperWhite, shape)
             .drawWithBorders(r.value, goldInset = 4f, goldAlpha = 0.55f)
+            .testTag("onboarding.mockTrial.closed")
             .clearAndSetSemantics {
                 contentDescription = MockTrialScript.closedAccessibilityText
                 heading()
             }
-            .testTag("onboarding.mockTrial.closed")
             .padding(horizontal = PleadSpacing.l, vertical = PleadSpacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(PleadSpacing.m),

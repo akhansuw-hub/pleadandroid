@@ -3,11 +3,12 @@
 package app.plead.android.features.shell
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.plead.android.support.PleadComposeTestCase
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class PartnerPaidComposeTests : ShellUITestCase() {
+class PartnerPaidComposeTests : PleadComposeTestCase() {
 
     @Test fun testPartnerPaidContinuesIntoApp() {
         launch("AWDemoStore" to "partnerPaid")

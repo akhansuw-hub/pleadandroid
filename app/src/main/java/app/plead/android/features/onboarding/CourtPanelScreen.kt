@@ -238,8 +238,8 @@ fun JudgeHero(modifier: Modifier = Modifier, persona: JudgePersona = JudgePerson
         modifier
             .fillMaxWidth()
             .padding(bottom = T.floorShadowHeight / 2)
-            .clearAndSetSemantics { contentDescription = JudgeHero.accessibilityLabel(persona) }
-            .testTag("onboarding.court.judge"),
+            .testTag("onboarding.court.judge")
+            .clearAndSetSemantics { contentDescription = JudgeHero.accessibilityLabel(persona) },
         contentAlignment = Alignment.BottomCenter,
     ) {
         Box(
@@ -287,8 +287,8 @@ fun JurorRoleCard(
             .background(T.cardFill, shape)
             .border(OnboardingKitTokens.Size.hairline, T.cardBorder, shape)
             .padding(horizontal = S.cardPadding, vertical = S.cardInner + 2.dp)
-            .clearAndSetSemantics { contentDescription = juror.accessibilityLabel }
-            .testTag("onboarding.court.juror.${juror.role.rawValue}"),
+            .testTag("onboarding.court.juror.${juror.role.rawValue}")
+            .clearAndSetSemantics { contentDescription = juror.accessibilityLabel },
         horizontalArrangement = Arrangement.spacedBy(S.cardInner),
         verticalAlignment = if (accessibilitySize) Alignment.Top else Alignment.CenterVertically,
     ) {

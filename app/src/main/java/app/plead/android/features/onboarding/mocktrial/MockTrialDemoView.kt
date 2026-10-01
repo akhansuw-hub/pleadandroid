@@ -382,11 +382,11 @@ fun MockTrialInvitation(modifier: Modifier = Modifier, leaving: Boolean = false)
                         color = OnboardingPalette.gold,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
+                            .testTag("onboarding.mockTrial.title")
                             .clearAndSetSemantics {
                                 contentDescription = "See how a Plead trial works"
                                 heading()
-                            }
-                            .testTag("onboarding.mockTrial.title"),
+                            },
                     )
                     Text(MockTrialInvitation.body, style = PleadType.displayM, color = OnboardingPalette.wine, textAlign = TextAlign.Center)
                 }
@@ -407,8 +407,8 @@ private fun InvitationCard() {
             .border(1.dp, OnboardingPalette.border, shape)
             .padding(4.dp)
             .border(1.dp, OnboardingPalette.gold.copy(alpha = 0.45f), RoundedCornerShape(OnboardingRadius.card - 4.dp))
-            .clearAndSetSemantics { contentDescription = MockTrialInvitation.caseCard }
-            .testTag("onboarding.mockTrial.upNext"),
+            .testTag("onboarding.mockTrial.upNext")
+            .clearAndSetSemantics { contentDescription = MockTrialInvitation.caseCard },
     ) {
         Box(Modifier.align(Alignment.CenterStart).padding(start = 4.dp).width(4.dp).height(48.dp).background(OnboardingPalette.burgundy))
         Column(

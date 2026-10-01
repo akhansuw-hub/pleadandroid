@@ -559,8 +559,8 @@ fun PartnerVersusCard(me: String, myAvatar: Avatar?, partner: String, partnerAva
             .pleadShadow(OnboardingPalette.wine.copy(alpha = 0.08f), radius = T.cardShadow.dp, y = T.cardShadowY.dp, shape = shape)
             .background(OnboardingPalette.paper, shape)
             .border(1.dp, OnboardingPalette.border, shape)
-            .clearAndSetSemantics { contentDescription = PartnerVersusCard.accessibilityText(me, partner) }
             .testTag("onboarding.versusCard")
+            .clearAndSetSemantics { contentDescription = PartnerVersusCard.accessibilityText(me, partner) }
             .padding(PleadSpacing.l),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(PleadSpacing.l),

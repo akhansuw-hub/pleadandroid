@@ -251,6 +251,7 @@ fun CourtCaseCallCard(
                     transformOrigin = TransformOrigin(0.5f, 1f)
                     translationY = if (reduceMotion) 0f else CourtMotionTiming.bubbleRise * (1f - p) * density
                 }
+                .testTag("court.caseCall")
                 .clearAndSetSemantics {
                     contentDescription = call.accessibilityLabel
                     if (onTap != null) {
@@ -258,7 +259,6 @@ fun CourtCaseCallCard(
                         onClick { onTap(); true }
                     }
                 }
-                .testTag("court.caseCall")
                 .widthIn(max = 340.dp)
                 .pleadShadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f), 14.dp, y = 6.dp, shape = shape)
                 .background(PleadColor.paperWhite, shape)

@@ -275,8 +275,8 @@ fun CourtHelpSheet(
                         role = SemanticsRole.Button,
                         onClick = dismiss,
                     )
-                    .clearAndSetSemantics { contentDescription = "Close" }
-                    .testTag("court.help.close"),
+                    .testTag("court.help.close")
+                    .clearAndSetSemantics { contentDescription = "Close" },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(Modifier.size(30.dp).background(PleadColor.parchment, CircleShape), contentAlignment = Alignment.Center) {
@@ -330,8 +330,8 @@ private fun ExampleCard(example: String, modifier: Modifier = Modifier) {
             .background(PleadColor.paperWhite, shape)
             .border(1.5.dp, PleadColor.parchment, shape)
             .padding(PleadSpacing.l)
-            .clearAndSetSemantics { contentDescription = "Example: $example" }
-            .testTag("court.help.example"),
+            .testTag("court.help.example")
+            .clearAndSetSemantics { contentDescription = "Example: $example" },
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text("EXAMPLE", style = PleadType.labelCaps.copy(letterSpacing = PleadType.capsTracking.sp), color = PleadColor.burgundy)
@@ -356,11 +356,11 @@ private fun CourtHelpDeadline(target: Instant, label: String) {
             Modifier
                 .background(PleadColor.parchment, RoundedCornerShape(50))
                 .padding(horizontal = 10.dp, vertical = 5.dp)
+                .testTag("court.help.deadline")
                 .clearAndSetSemantics {
                     contentDescription = if (label == "left") "Time left" else "Time $label"
                     stateDescription = CourtroomLogic.spokenCountdown(remaining)
-                }
-                .testTag("court.help.deadline"),
+                },
             horizontalArrangement = Arrangement.spacedBy(5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

@@ -409,11 +409,11 @@ fun CourtHeadline(
         textAlign = TextAlign.Center,
         modifier = modifier
             .fillMaxWidth()
+            .testTag(identifier)
             .clearAndSetSemantics {
                 contentDescription = CourtHeadline.spoken(text)
                 heading()
-            }
-            .testTag(identifier),
+            },
     )
 }
 
@@ -842,8 +842,8 @@ fun CourtProgressRail(index: Int, count: Int, modifier: Modifier = Modifier, onD
         modifier
             .fillMaxWidth()
             .height(Z.railHeight)
-            .clearAndSetSemantics { contentDescription = CourtProgressRail.accessibilityText(current, n) }
-            .testTag(CourtProgressRail.identifier),
+            .testTag(CourtProgressRail.identifier)
+            .clearAndSetSemantics { contentDescription = CourtProgressRail.accessibilityText(current, n) },
     ) {
         val active = Z.railActiveDot.toPx()
         val gap = if (n > 1) (size.width - active) / (n - 1) else 0f

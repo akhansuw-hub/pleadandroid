@@ -7,34 +7,33 @@
 // skipped instead of passing it.
 package app.plead.android.features.onboarding
 
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import app.plead.android.features.onboarding.OnboardingTestSupport.Companion.newUserArguments
-import app.plead.android.features.onboarding.OnboardingTestSupport.Onboarding
-import org.junit.After
+import app.plead.android.support.Onboarding
+import app.plead.android.support.PleadComposeTestCase
+import app.plead.android.support.assertNoPrivacyStep
+import app.plead.android.support.onboardingStep
+import app.plead.android.support.passMockTrial
+import app.plead.android.support.passSummonsIntro
+import app.plead.android.support.progressLabel
+import app.plead.android.support.skipMockTrialFromInvitation
+import app.plead.android.support.walkOnboarding
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class OnboardingFlowComposeTests {
-    @get:Rule val rule = createComposeRule()
-    private val ui = OnboardingTestSupport(rule)
-
-    @After fun tearDown() = ui.tearDown()
-
+class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
     /** signedOut → Welcome → Mock Trial Demo → every screen via its CTA → the gate. */
     @Test fun testWalksAllScreens() {
-        ui.launch(newUserArguments)
-        ui.walkOnboarding(name = "Arif")
+        launch(newUserArguments)
+        walkOnboarding(name = "Arif")
         // Past the last screen the gate takes over (link step or paywall), never the tabs: nothing is paid yet.
-        assertFalse("An unpaid new user reached the tabs", ui.tabsAppear(timeout = 2.0))
+        assertFalse("An unpaid new user reached the tabs", tabsAppear(timeoutMs = 2_000))
         assertTrue(
             "Neither the paywall nor the link step followed onboarding",
-            ui.waitUntil { ui.exists("Close") } || ui.exists("Continue on my own"),
+            waitUntil { exists("Close") } || exists("Continue on my own"),
         )
     }
 
@@ -43,23 +42,23 @@ class OnboardingFlowComposeTests {
      * Welcome); Welcome has no back.
      */
     @Test fun testBackReturnsToPreviousScreen() {
-        ui.launch(newUserArguments)
-        ui.onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
-        ui.passMockTrial()
-        ui.passSummonsIntro()
-        ui.onboardingStep(Onboarding.howItWorks, tapping = "Continue")
-        ui.waitFor(Onboarding.aiCourt)
-        ui.tap("onboarding.back")
-        ui.waitFor(Onboarding.howItWorks)
-        ui.tap("onboarding.back")
-        ui.waitFor(Onboarding.summonsIntro)
-        ui.tap("onboarding.back")
-        ui.waitFor(Onboarding.mockTrial)
-        ui.waitFor(Onboarding.mockTrialStart)
-        assertFalse("Re-entering the demo kept the finished trial", ui.exists(Onboarding.mockTrialContinue))
-        ui.tap("onboarding.back")
-        ui.waitFor(Onboarding.welcome)
-        assertFalse("Welcome offers a back button", ui.existsAndEnabled("onboarding.back"))
+        launch(newUserArguments)
+        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        passMockTrial()
+        passSummonsIntro()
+        onboardingStep(Onboarding.howItWorks, tapping = "Continue")
+        waitFor(Onboarding.aiCourt)
+        tap("onboarding.back")
+        waitFor(Onboarding.howItWorks)
+        tap("onboarding.back")
+        waitFor(Onboarding.summonsIntro)
+        tap("onboarding.back")
+        waitFor(Onboarding.mockTrial)
+        waitFor(Onboarding.mockTrialStart)
+        assertFalse("Re-entering the demo kept the finished trial", exists(Onboarding.mockTrialContinue))
+        tap("onboarding.back")
+        waitFor(Onboarding.welcome)
+        assertFalse("Welcome offers a back button", existsAndEnabled("onboarding.back"))
     }
 
     /**
@@ -67,17 +66,17 @@ class OnboardingFlowComposeTests {
      * mid-trial and not a broken state.
      */
     @Test fun testResumesOnTheMockTrialAfterRelaunch() {
-        ui.launch(newUserArguments)
-        ui.onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
-        ui.tap(Onboarding.mockTrialStart)
+        launch(newUserArguments)
+        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        tap(Onboarding.mockTrialStart)
 
-        ui.launch(newUserArguments + listOf("AWOnboardResume", "YES"))
-        ui.waitFor(Onboarding.mockTrial)
-        ui.waitFor(Onboarding.mockTrialStart)
-        assertFalse("Relaunch started over on Welcome", ui.exists(Onboarding.welcome))
-        assertFalse("Relaunch resumed mid-trial on CASE CLOSED", ui.exists(Onboarding.mockTrialContinue))
-        ui.passMockTrial()
-        ui.waitFor(Onboarding.summonsIntro)
+        launch(newUserArguments + ("AWOnboardResume" to "YES"))
+        waitFor(Onboarding.mockTrial)
+        waitFor(Onboarding.mockTrialStart)
+        assertFalse("Relaunch started over on Welcome", exists(Onboarding.welcome))
+        assertFalse("Relaunch resumed mid-trial on CASE CLOSED", exists(Onboarding.mockTrialContinue))
+        passMockTrial()
+        waitFor(Onboarding.summonsIntro)
     }
 
     /**
@@ -85,16 +84,16 @@ class OnboardingFlowComposeTests {
      * (amendment ai), whose CONTINUE reaches How Plead Works.
      */
     @Test fun testSkipDemoShowsTheSummonsExplainerThenHowPleadWorks() {
-        ui.launch(newUserArguments)
-        ui.onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
-        ui.skipMockTrialFromInvitation()
-        ui.waitFor(Onboarding.summonsIntro)
-        ui.waitFor(Onboarding.summonsHeadline)
-        ui.waitFor("When to call court")
-        assertFalse("How Plead Works showed before the summons explainer", ui.exists(Onboarding.howItWorks))
-        ui.tap(Onboarding.summonsIntroContinue)
-        ui.waitForGone(Onboarding.summonsIntro)
-        ui.waitFor(Onboarding.howItWorks)
+        launch(newUserArguments)
+        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        skipMockTrialFromInvitation()
+        waitFor(Onboarding.summonsIntro)
+        waitFor(Onboarding.summonsHeadline)
+        waitFor("When to call court")
+        assertFalse("How Plead Works showed before the summons explainer", exists(Onboarding.howItWorks))
+        tap(Onboarding.summonsIntroContinue)
+        waitForGone(Onboarding.summonsIntro)
+        waitFor(Onboarding.howItWorks)
     }
 
     /**
@@ -103,20 +102,20 @@ class OnboardingFlowComposeTests {
      * COURT → the summons explainer (amendment ai).
      */
     @Test fun testStartMockTrialThenContinueGoesToSummonsExplainer() {
-        ui.launch(newUserArguments)
-        ui.onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
-        ui.waitFor(Onboarding.mockTrial)
-        ui.waitFor("See how a Plead trial works")
-        ui.tap(Onboarding.mockTrialStart)
-        ui.waitForGone(Onboarding.mockTrialStart)
+        launch(newUserArguments)
+        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        waitFor(Onboarding.mockTrial)
+        waitFor("See how a Plead trial works")
+        tap(Onboarding.mockTrialStart)
+        waitForGone(Onboarding.mockTrialStart)
         // The claim is read after the entrance, before any testimony (and so long before CASE CLOSED).
-        ui.waitFor(ui.claimCard, Onboarding.mockClaim, timeout = 10.0)
-        assertFalse("CASE CLOSED arrived before the claim", ui.exists(Onboarding.mockTrialContinue))
+        waitFor(Onboarding.mockClaim, timeoutMs = 10_000)
+        assertFalse("CASE CLOSED arrived before the claim", exists(Onboarding.mockTrialContinue))
         // No taps: CASE CLOSED must arrive on its own, and its text is up before the CTA is used.
-        ui.waitForContaining(Onboarding.mockClosedTitle, timeout = 90.0)
-        ui.tap(Onboarding.mockTrialContinue, timeout = 10.0)
-        ui.waitForGone(Onboarding.mockTrial)
-        ui.waitFor(Onboarding.summonsIntro)
+        waitForContaining(Onboarding.mockClosedTitle, timeoutMs = 90_000)
+        tap(Onboarding.mockTrialContinue, timeoutMs = 10_000)
+        waitForGone(Onboarding.mockTrial)
+        waitFor(Onboarding.summonsIntro)
     }
 
     /**
@@ -124,40 +123,40 @@ class OnboardingFlowComposeTests {
      * playback); Got it closes it and the trial still reaches CASE CLOSED's CTA.
      */
     @Test fun testMockTrialHelpSheetPausesThenGotItResumesToCaseClosed() {
-        ui.launch(newUserArguments)
-        ui.onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
-        ui.waitFor(Onboarding.mockTrial)
-        assertFalse("The help button showed on the intro", ui.exists(Onboarding.mockHelp))
-        ui.tap(Onboarding.mockTrialStart)
+        launch(newUserArguments)
+        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        waitFor(Onboarding.mockTrial)
+        assertFalse("The help button showed on the intro", exists(Onboarding.mockHelp))
+        tap(Onboarding.mockTrialStart)
         // Entrance (2.2 s) + the session line and claim (≈ 4.4 s), then Sam's opening offers the button.
-        ui.tap(Onboarding.mockHelp, timeout = 15.0)
-        ui.waitFor("What's an opening statement?")
-        ui.waitFor(Onboarding.helpGotIt)
+        tap(Onboarding.mockHelp, timeoutMs = 15_000)
+        waitFor("What's an opening statement?")
+        waitFor(Onboarding.helpGotIt)
         // Paused: nothing moves behind the sheet (the next beat's exhibit never arrives).
         assertFalse(
             "Playback carried on behind the help sheet",
-            ui.waitUntil(8.0) { ui.exists(ui.exhibitCard) },
+            waitUntil(8_000) { exists(Onboarding.mockExhibit) },
         )
-        ui.tap(Onboarding.helpGotIt)
-        ui.waitForGone(Onboarding.helpGotIt)
-        ui.tap(Onboarding.mockTrialContinue, timeout = 90.0)
-        ui.waitForGone(Onboarding.mockTrial)
-        ui.waitFor(Onboarding.summonsIntro)
+        tap(Onboarding.helpGotIt)
+        waitForGone(Onboarding.helpGotIt)
+        tap(Onboarding.mockTrialContinue, timeoutMs = 90_000)
+        waitForGone(Onboarding.mockTrial)
+        waitFor(Onboarding.summonsIntro)
     }
 
     /** Kill the app on Example Cases; `AWOnboardResume YES` relaunches there. */
     @Test fun testResumesOnLastStepAfterRelaunch() {
-        ui.launch(newUserArguments)
-        ui.onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
-        ui.passMockTrial()
-        ui.passSummonsIntro()
-        ui.onboardingStep(Onboarding.howItWorks, tapping = "Continue")
-        ui.onboardingStep(Onboarding.aiCourt, tapping = "Continue")
-        ui.waitFor(Onboarding.examples)
+        launch(newUserArguments)
+        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        passMockTrial()
+        passSummonsIntro()
+        onboardingStep(Onboarding.howItWorks, tapping = "Continue")
+        onboardingStep(Onboarding.aiCourt, tapping = "Continue")
+        waitFor(Onboarding.examples)
 
-        ui.launch(newUserArguments + listOf("AWOnboardResume", "YES"))
-        ui.waitFor(Onboarding.examples)
-        assertFalse("Relaunch started over on Welcome", ui.exists(Onboarding.welcome))
+        launch(newUserArguments + ("AWOnboardResume" to "YES"))
+        waitFor(Onboarding.examples)
+        assertFalse("Relaunch started over on Welcome", exists(Onboarding.welcome))
     }
 
     /**
@@ -166,17 +165,17 @@ class OnboardingFlowComposeTests {
      * Privacy screen and its note never show → Court Is Ready.
      */
     @Test fun testTrackingFollowsNotificationsThenWidgets() {
-        ui.launch(newUserArguments + listOf("AWOnboardStep", "notifications"))
-        ui.waitFor(Onboarding.notifications)
-        assertEquals("Step 9 of ${Onboarding.screenCount}", ui.progressLabel())
-        ui.tap("Not now")
-        ui.waitForGone(Onboarding.notifications)
-        ui.waitFor(Onboarding.widgets)
-        ui.assertNoPrivacyStep()
-        assertFalse("The ATT note showed on Android", ui.exists("onboarding.privacy.note"))
-        assertEquals("Step 10 of ${Onboarding.screenCount}", ui.progressLabel())
-        ui.onboardingStep(Onboarding.widgets, tapping = "Not now")
-        ui.waitFor(Onboarding.ready)
+        launch(newUserArguments + ("AWOnboardStep" to "notifications"))
+        waitFor(Onboarding.notifications)
+        assertEquals("Step 9 of ${Onboarding.screenCount}", progressLabel())
+        tap("Not now")
+        waitForGone(Onboarding.notifications)
+        waitFor(Onboarding.widgets)
+        assertNoPrivacyStep()
+        assertFalse("The ATT note showed on Android", exists("onboarding.privacy.note"))
+        assertEquals("Step 10 of ${Onboarding.screenCount}", progressLabel())
+        onboardingStep(Onboarding.widgets, tapping = "Not now")
+        waitFor(Onboarding.ready)
     }
 
     /**
@@ -185,17 +184,17 @@ class OnboardingFlowComposeTests {
      * Notices.
      */
     @Test fun testPartnerStepAsksNoName() {
-        ui.launch(newUserArguments + listOf("AWOnboardStep", "partner"))
-        ui.waitFor(Onboarding.partner)
-        assertEquals("Step 8 of ${Onboarding.screenCount}", ui.progressLabel())
-        assertFalse("The partner step still asks for a name", ui.exists("onboarding.partnerName"))
-        assertFalse("The partner step still shows the name field", ui.exists("Partner's name"))
-        ui.waitFor(ui.versusCard, "onboarding.versusCard")
-        val card = ui.label(ui.versusCard, "onboarding.versusCard")
+        launch(newUserArguments + ("AWOnboardStep" to "partner"))
+        waitFor(Onboarding.partner)
+        assertEquals("Step 8 of ${Onboarding.screenCount}", progressLabel())
+        assertFalse("The partner step still asks for a name", exists("onboarding.partnerName"))
+        assertFalse("The partner step still shows the name field", exists("Partner's name"))
+        waitFor(Onboarding.versusCard)
+        val card = fullLabel(Onboarding.versusCard)
         assertTrue(card, card.contains("versus your partner"))
-        ui.waitFor("onboarding.partner.haveCode")
-        ui.waitFor("Together since")
-        ui.onboardingStep(Onboarding.partner, tapping = "I'll do this later")
-        ui.waitFor(Onboarding.notifications)
+        waitFor("onboarding.partner.haveCode")
+        waitFor("Together since")
+        onboardingStep(Onboarding.partner, tapping = "I'll do this later")
+        waitFor(Onboarding.notifications)
     }
 }

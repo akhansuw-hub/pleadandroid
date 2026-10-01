@@ -265,8 +265,8 @@ fun CasePreviewCard(preview: CasePreview, modifier: Modifier = Modifier, stampDe
             .background(T.paper, shape)
             .border(1.dp, T.border, shape)
             .padding(PleadSpacing.l)
-            .clearAndSetSemantics { contentDescription = preview.accessibilityLabel }
-            .testTag("casepreview.${preview.number}"),
+            .testTag("casepreview.${preview.number}")
+            .clearAndSetSemantics { contentDescription = preview.accessibilityLabel },
         verticalArrangement = Arrangement.spacedBy(PleadSpacing.s),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(PleadSpacing.s)) {

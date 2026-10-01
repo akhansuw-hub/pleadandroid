@@ -263,11 +263,11 @@ internal fun ReadyCourtroom(
             .fillMaxWidth()
             .aspectRatio(ReadyCourtroom.aspect)
             .clip(RoundedCornerShape(OnboardingKitTokens.Radius.scene))
+            .testTag("onboarding.ready.courtroom")
             .clearAndSetSemantics {
                 contentDescription = ReadyCourtroom.accessibilityText(me.name, partner.name)
                 role = Role.Image
-            }
-            .testTag("onboarding.ready.courtroom"),
+            },
     ) {
         val w = maxWidth.value
         val art = Size(w, w / CourtroomZones.artAspect)

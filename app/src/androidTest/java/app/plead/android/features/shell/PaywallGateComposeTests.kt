@@ -3,6 +3,8 @@
 package app.plead.android.features.shell
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.plead.android.support.PleadComposeTestCase
+import app.plead.android.support.walkOnboarding
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -10,7 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class PaywallGateComposeTests : ShellUITestCase() {
+class PaywallGateComposeTests : PleadComposeTestCase() {
 
     private fun plan(name: String) = button(beginningWith(name))
 

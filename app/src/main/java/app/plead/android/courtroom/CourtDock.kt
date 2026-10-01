@@ -1197,8 +1197,8 @@ private fun LeftAndRest(c: DockController, count: Int, short: Boolean, modifier:
                     interactionSource = remember { MutableInteractionSource() }, indication = null, enabled = !c.busy,
                     onClickLabel = "Tell the court you have no further evidence and hand over", role = SemanticsRole.Button,
                 ) { c.rest() }
-                .clearAndSetSemantics { contentDescription = "Rest" }
-                .testTag("court.rest"),
+                .testTag("court.rest")
+                .clearAndSetSemantics { contentDescription = "Rest" },
             contentAlignment = Alignment.Center,
         ) {
             Text("Rest", style = CourtFont.link.copy(textDecoration = TextDecoration.Underline), color = PleadColor.cream)

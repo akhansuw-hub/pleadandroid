@@ -5,6 +5,7 @@ package app.plead.android.features.shell
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasTestTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.plead.android.support.PleadComposeTestCase
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
@@ -12,7 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class HomeComposeTests : ShellUITestCase() {
+class HomeComposeTests : PleadComposeTestCase() {
 
     private val primaryLabel = hasTestTag("home.primary.label")
 

@@ -431,8 +431,8 @@ fun CourtIdentityPreview(name: String, avatar: Avatar, modifier: Modifier = Modi
             .pleadShadow(OnboardingPalette.wine.copy(alpha = 0.18f), radius = T.cardShadow.dp, y = T.cardShadowY.dp, shape = shape)
             .background(OnboardingPalette.wine, shape)
             .border(1.dp, OnboardingPalette.gold.copy(alpha = 0.35f), shape)
-            .clearAndSetSemantics { contentDescription = CourtIdentityPreview.accessibilityText(name, avatar) }
             .testTag("onboarding.identityPreview")
+            .clearAndSetSemantics { contentDescription = CourtIdentityPreview.accessibilityText(name, avatar) }
             .padding(PleadSpacing.l),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(PleadSpacing.m),
