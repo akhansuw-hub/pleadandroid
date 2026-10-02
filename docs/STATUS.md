@@ -13,21 +13,23 @@ integrator (wave 4) keeps the summary current. Brief: [PORT.md](PORT.md).
   judgement, Settings (incl. the onboarding preview), Us, the Glance widgets (small / medium / 1x1 / one-row strip),
   FCM push and the ongoing "court in session" notification (the Live Activity's replacement). `DemoHarness` flags
   drive all of it on the emulator; screenshots in [screenshots/](screenshots/).
-- **Build (`polish2/type`):** `assembleDebug` + `assembleRelease` OK; JVM tests 848 run, 0 failures; lint 0 errors
-  (44 warnings, 5 hints); Compose tests on `visage_phone` 53 run, 52 passed, 1 skipped, 0 failures (10 min).
+- **Build (`polish2/all`: `polish2/type` + `polish2/tabpill`):** `assembleDebug` + `assembleRelease` (unsigned) OK;
+  JVM tests 855 run, 0 failures; lint 0 errors (44 warnings, 5 hints); Compose tests on `visage_phone` 55 run,
+  54 passed, 1 skipped, 0 failures (600 s of test time).
 - **Build (final, `polish/all`: court + misc + shell polish integrated):** `assembleDebug` + `assembleRelease` (unsigned:
   no release signing config, see "Needs the user") OK; JVM tests 835 run, 0 failures; lint 0 errors (44 warnings,
   5 hints); Compose tests on the `visage_phone` emulator (API 35) 53 run, 52 passed, 1 skipped, 0 failures (first full
   run, 10 min); backend `deno check` clean, `deno test` 279 passed, 0 failed (unchanged by the polish branches).
 - **Compose UI tests:** every ArgueWinUITests suite is ported: 43 instrumented tests under
   `src/androidTest/.../features/{court,shell,onboarding}/` on one shared support package (see "Compose UI tests"
-  below), next to the 8 earlier smoke tests and the 2 tab-state tests (`features/shell/TabStateComposeTests`). Run on
-  the `visage_phone` emulator (Pixel 7, API 35, `connectedDebugAndroidTest`): 53 run, 52 passed, 1 skipped
+  below), next to the 8 earlier smoke tests, the 2 tab-state tests (`features/shell/TabStateComposeTests`) and the 2
+  tab-pill tests (`features/shell/TabBarPillComposeTests`). Run on the `visage_phone` emulator (Pixel 7, API 35,
+  `connectedDebugAndroidTest`): 55 run, 54 passed, 1 skipped
   (`testDefenceDueOpensTheDefenceFlow`, an assumption, as on iOS), 0 failed (~10 min).
 - **Owed:** the Wave 4 visual gaps are fixed (polish branches, listed under Wave 4; `polish2/type` fixed letter
   spacing, the scheduling sheet's partial detent, the judge name on 360 dp phones and the onboarding widget
-  illustration under ~368 dp); what is still open: the Liquid Glass pill behind the selected tab, slow debug cold
-  launches on the emulator.
+  illustration on narrow and short phones; `polish2/tabpill` drew the selected-tab pill). What is still open: the
+  pill has no live glass refraction / blur (not portable), slow debug cold launches on the emulator.
 - **Needs the user:** see the last section.
 
 ## Wave 1: skeleton (done)
@@ -431,11 +433,14 @@ Fixed since (branch `polish2/type`):
   name at full size. At 360 dp: ×1 unchanged; ×1.15 and the bubble's xxLarge cap (×1.3 and above) render at ≈0.97 /
   0.91 on one row. Pixel 7 is unchanged at every scale. `CourtJudgeHeaderTests` (1, 1.15, 1.3, 2.0 at 411 and 360 dp,
   phase chip and ruling box, plus the fit rule); `screenshots/court-judge-large-360.png`.
-- **Onboarding widget illustration** (`WidgetEducationPreview`): laid out at its iOS size (320 × 318) and scaled with
-  its proportions to the width offered when narrower (`heroFit`), so nothing runs past the edge from 320 dp up (it
-  used to be clamped to the column width with the widget offset fixed, so on 343 dp it ran 1 dp past the screen, more
-  while floating in). Pixel 7 and the iOS 16e width are unscaled. `WidgetEducationPreviewFitTests`;
-  `screenshots/onb2-widgets-360.png`, `onb2-widgets-320.png`.
+- **Onboarding widget illustration** (`WidgetEducationPreview`): laid out at its iOS size (320 × 318) and scaled
+  uniformly (`heroFit`, the iOS proportions, centred) by the smaller of the width fit and the height fit: the height
+  from the hero's top to the buttons, minus 12 dp (measured unscrolled, so scrolling and the CTA's entrance never
+  change it). Nothing runs past the edge from 320 dp up, and on short phones the whole composition, down to the widget
+  card's "Awaiting your plea" pill, sits above the buttons (the pills and the availability line below it scroll).
+  It used to be clamped to the column width with the widget offset fixed (on 343 dp it ran 1 dp past the screen) and
+  on 360 × 640 the buttons cut the widget card in half. Pixel 7 and the iOS 16e size are unscaled.
+  `WidgetEducationPreviewFitTests`; `screenshots/onb2-widgets-360.png` (360 × 640), `onb2-widgets-320.png` (320 × 568).
 - Still differs from iOS: tracking in sp grows with the system font scale (iOS tracking is in points and does not
   follow Dynamic Type); Material components' own sizes and line heights (dialog titles, date pickers) are Material's.
 
@@ -512,7 +517,8 @@ Fixed since (polish/misc):
 - Onboarding's widget illustration no longer tail-truncates "The Dinner Incid…": `widgets/WidgetFitText` (Compose,
   measured with the theme style merged in) applies the same `.minimumScaleFactor(0.75)` as the real small widget.
 
-Open (not fixed): none (the onboarding widget illustration under ~368 dp is fixed on `polish2/type`, below).
+Open (not fixed): none (the onboarding widget illustration on narrow / short phones is fixed on `polish2/type`, see
+"Fixed since (branch `polish2/type`)" under Wave 4).
 
 ## Compose UI tests (ArgueWinUITests port)
 

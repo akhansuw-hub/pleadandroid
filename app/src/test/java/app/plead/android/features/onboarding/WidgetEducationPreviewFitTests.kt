@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import app.plead.android.designsystem.PleadTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,6 +35,41 @@ class WidgetEducationPreviewFitTests {
         assertEquals(1f, WidgetEducationPreview.heroScale(1089, 960), 0f)   // Pixel 7: 363 dp of content
         assertEquals(312f / 320f, WidgetEducationPreview.heroScale(936, 960), 0.0001f)   // 360 dp phone
         assertEquals(272f / 320f, WidgetEducationPreview.heroScale(816, 960), 0.0001f)   // 320 dp phone
+    }
+
+    @Test fun heroScaleIsTheSmallerOfTheWidthAndHeightFits() {
+        // No height limit: the width fit.
+        assertEquals(1f, WidgetEducationPreview.heroScale(1089, 960, null, 954), 0f)
+        // Pixel 7: room for the whole hero, unchanged.
+        assertEquals(1f, WidgetEducationPreview.heroScale(1089, 960, 1200, 954), 0f)
+        // Short screen: the height fit wins (uniform, so the proportions stay).
+        assertEquals(477f / 954f, WidgetEducationPreview.heroScale(936, 960, 477, 954), 0.0001f)
+        // Narrow but tall enough: the width fit wins.
+        assertEquals(936f / 960f, WidgetEducationPreview.heroScale(936, 960, 2000, 954), 0.0001f)
+        // Available height from the hero's top to the CTA's, less the margin; unknown until both are measured.
+        assertEquals(null, WidgetEducationPreview.availableHeight(null, 1500f, 36f))
+        assertEquals(564, WidgetEducationPreview.availableHeight(900f, 1500f, 36f))
+        assertEquals(1, WidgetEducationPreview.availableHeight(1500f, 1400f, 36f))
+    }
+
+    /** Short screens: the whole composition fits the height it is given, at the iOS proportions. */
+    @Test fun illustrationScalesToTheOfferedHeight() {
+        var maxHeight by mutableFloatStateOf(318f)
+        rule.setContent {
+            PleadTheme {
+                val px = with(androidx.compose.ui.platform.LocalDensity.current) { maxHeight.dp.roundToPx() }
+                Box(Modifier.width(312.dp)) { WidgetEducationPreview(Modifier.testTag("hero"), maxHeightPx = px) }
+            }
+        }
+        for (h in listOf(318f, 250f, 200f, 150f)) {
+            maxHeight = h
+            rule.waitForIdle()
+            val bounds = rule.onNodeWithTag("hero", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val scale = minOf(1f, 312f / 320f, h / 318f)
+            val heightDp = with(rule.density) { bounds.height.toDp().value }
+            assertEquals("hero height with $h dp available", 318f * scale, heightDp, 1f)
+            assertTrue("hero taller than $h dp", heightDp <= h + 0.5f)
+        }
     }
 
     /** Content widths of 320, 343, 360 dp and Pixel 7 phones (screen − 2 × 24 dp gutter), and the iOS 16e (342). */

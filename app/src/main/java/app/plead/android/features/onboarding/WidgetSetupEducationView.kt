@@ -15,6 +15,9 @@ package app.plead.android.features.onboarding
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -129,6 +132,19 @@ fun WidgetSetupEducationView(app: AppModel, modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) { model.widgetEducationAppeared() }
     // Back from the Home Screen (the sheet may still be up): did they add one?
     var firstResume by remember { mutableStateOf(true) }
+    // Short screens: the illustration also fits the height between the copy and the buttons (window px, measured
+    // unscrolled: the hero's top is the lowest it has been, the CTA's the highest, so the scroll and the CTA's
+    // entrance rise never change the fit). Re-measured when the window or the font scale changes.
+    val windowKey = LocalWindowInfo.current.containerSize to LocalDensity.current.fontScale
+    var heroTop by remember(windowKey) { mutableStateOf<Float?>(null) }
+    var ctaTop by remember(windowKey) { mutableStateOf<Float?>(null) }
+    val ctaTopPadding = with(LocalDensity.current) { OnboardingKitTokens.Spacing.ctaTop.toPx() }
+    val heroMargin = with(LocalDensity.current) { WidgetEducationPreview.bottomMargin.toPx() }
+    val heroMaxHeight = WidgetEducationPreview.availableHeight(heroTop, ctaTop, heroMargin)
+    val ctaProbe = Modifier.onGloballyPositioned {
+        val y = it.positionInWindow().y - ctaTopPadding
+        if (ctaTop.let { old -> old == null || y < old }) ctaTop = y
+    }
     LifecycleResumeEffect(Unit) {
         if (firstResume) firstResume = false else scope.launch { model.refreshWidgetSetup() }
         onPauseOrDispose { }
@@ -140,7 +156,15 @@ fun WidgetSetupEducationView(app: AppModel, modifier: Modifier = Modifier) {
             PermissionScreenHeader(eyebrow = WidgetsCopy.eyebrow, headline = WidgetsCopy.headline, subtitle = WidgetsCopy.subtitle)
         },
         content = {
-            item { WidgetEducationPreview() }
+            item {
+                WidgetEducationPreview(
+                    Modifier.onGloballyPositioned {
+                        val y = it.positionInWindow().y
+                        if (heroTop.let { old -> old == null || y > old }) heroTop = y
+                    },
+                    maxHeightPx = heroMaxHeight,
+                )
+            }
             item {
                 WidgetSurfacePills(Modifier.pleadReveal(PleadRevealKind.body, index = 3, delay = OnboardingMotionTokens.cardDelay))
             }
@@ -161,9 +185,9 @@ fun WidgetSetupEducationView(app: AppModel, modifier: Modifier = Modifier) {
         },
         cta = {
             if (model.widgetSetupComplete) {
-                CourtPrimaryButton(title = "Continue", identifier = "onboarding.widgets.continue") { model.advance() }
+                CourtPrimaryButton(title = "Continue", modifier = ctaProbe, identifier = "onboarding.widgets.continue") { model.advance() }
             } else {
-                CourtPrimaryButton(title = "Show me how", identifier = "onboarding.widgets.showMe") { showingInstructions = true }
+                CourtPrimaryButton(title = "Show me how", modifier = ctaProbe, identifier = "onboarding.widgets.showMe") { showingInstructions = true }
                 OnboardingSecondaryButton("Not now") { model.skipWidgetEducation() }
             }
         },
@@ -272,12 +296,31 @@ object WidgetEducationPreview {
     fun heroScale(availableWidthPx: Int, heroWidthPx: Int): Float =
         if (heroWidthPx <= 0 || availableWidthPx >= heroWidthPx) 1f else availableWidthPx.toFloat() / heroWidthPx
 
+    /**
+     * Width and height together: one uniform scale (the iOS proportions) = the smaller of the width fit and the
+     * height fit, never above 1. [availableHeightPx] null = no height limit.
+     */
+    fun heroScale(availableWidthPx: Int, heroWidthPx: Int, availableHeightPx: Int?, heroHeightPx: Int): Float {
+        val byWidth = heroScale(availableWidthPx, heroWidthPx)
+        if (availableHeightPx == null || heroHeightPx <= 0) return byWidth
+        return minOf(byWidth, (availableHeightPx.coerceAtLeast(1)).toFloat() / heroHeightPx)
+    }
+
+    /** Room left under the hero above the buttons: clear of the CTA's edge and the widget card's shadow. */
+    val bottomMargin: Dp = PleadSpacing.m
+
+    /** The height the hero may take (px): from its top to the CTA block's top, minus [marginPx]; null until both are known. */
+    fun availableHeight(heroTop: Float?, ctaTop: Float?, marginPx: Float): Int? {
+        if (heroTop == null || ctaTop == null) return null
+        return (ctaTop - heroTop - marginPx).toInt().coerceAtLeast(1)
+    }
+
     const val accessibilityLabel =
         "Preview: a Plead live update on the Lock Screen saying you've been summoned, and a small Plead widget on the Home Screen."
 }
 
 @Composable
-fun WidgetEducationPreview(modifier: Modifier = Modifier) {
+fun WidgetEducationPreview(modifier: Modifier = Modifier, maxHeightPx: Int? = null) {
     val T = PermissionScreenTokens
     // Fixed reference moment so the countdown reads the same on every launch (never ticks: no looping motion).
     val now = remember { Instant.now() }
@@ -293,7 +336,7 @@ fun WidgetEducationPreview(modifier: Modifier = Modifier) {
                 },
             contentAlignment = Alignment.TopCenter,
         ) {
-            Box(Modifier.heroFit(T.heroWidth, T.heroHeight)) {
+            Box(Modifier.heroFit(T.heroWidth, T.heroHeight, maxHeightPx)) {
                 LockScreenMock(now, Modifier.pleadReveal(PleadRevealKind.card, index = 0))
                 val w = WidgetEducationPreview.widgetRealSize * T.homeWidgetScale
                 HomeWidgetMock(
@@ -514,11 +557,14 @@ object OnboardingActivityBanner {
     }
 }
 
-/** Lays the hero out at [width] × [height] and scales it (both axes, about its centre) to fit a narrower width. */
-private fun Modifier.heroFit(width: Dp, height: Dp): Modifier = layout { measurable, constraints ->
+/**
+ * Lays the hero out at [width] × [height] and scales it uniformly (about its centre) to fit a narrower width and,
+ * when given, [maxHeightPx].
+ */
+private fun Modifier.heroFit(width: Dp, height: Dp, maxHeightPx: Int?): Modifier = layout { measurable, constraints ->
     val w = width.roundToPx()
     val h = height.roundToPx()
-    val scale = if (constraints.hasBoundedWidth) WidgetEducationPreview.heroScale(constraints.maxWidth, w) else 1f
+    val scale = WidgetEducationPreview.heroScale(if (constraints.hasBoundedWidth) constraints.maxWidth else w, w, maxHeightPx, h)
     val placeable = measurable.measure(Constraints.fixed(w, h))
     val outW = (w * scale).roundToInt()
     val outH = (h * scale).roundToInt()
