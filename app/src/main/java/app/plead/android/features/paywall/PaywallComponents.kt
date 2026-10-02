@@ -5,6 +5,11 @@
 // `minimumScaleFactor` → `BasicText(autoSize = TextAutoSize.StepBased(...))`.
 package app.plead.android.features.paywall
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -125,7 +130,9 @@ internal fun CappedTypeSize(limit: Float, content: @Composable () -> Unit) {
 
 /**
  * Text with SwiftUI's `.lineLimit(maxLines).minimumScaleFactor(minScale)`: shrinks (down to [minScale]) before it
- * truncates.
+ * truncates. One line (`maxLines = 1`) is sized explicitly: the largest 0.5 sp step that fits the width on one line
+ * (never a wrap, never a dropped word); `BasicText`'s auto-size didn't step down for unwrapped text, so it clipped
+ * ("BEST VALU", "…FREE TRIAI" on a 360 dp phone at a large font size). Several lines use the auto-size.
  */
 @Composable
 internal fun ScaledText(
@@ -136,8 +143,31 @@ internal fun ScaledText(
     maxLines: Int = Int.MAX_VALUE,
     minScale: Float = 1f,
     textAlign: TextAlign = TextAlign.Center,
+    /** One line only: when even [minScale] doesn't fit, wrap onto two lines at that size instead of clipping. */
+    wrapsWhenTooLong: Boolean = false,
 ) {
     val full = style.fontSize
+    if (maxLines == 1 && minScale < 1f) {
+        BoxWithConstraints(modifier, propagateMinConstraints = true) {
+            val measurer = rememberTextMeasurer()
+            val size = remember(text, style, constraints.maxWidth, minScale) {
+                ScaledText.oneLineFontSize(measurer, text, style, constraints.maxWidth, minScale)
+            }
+            val sized = style.copy(fontSize = size, textAlign = textAlign)
+            val wraps = wrapsWhenTooLong && remember(text, sized, constraints.maxWidth) {
+                !ScaledText.fitsOneLine(measurer, text, sized, constraints.maxWidth)
+            }
+            BasicText(
+                text = text,
+                style = sized,
+                color = ColorProducer { color },
+                maxLines = if (wraps) 2 else 1,
+                softWrap = wraps,
+                overflow = TextOverflow.Clip,
+            )
+        }
+        return
+    }
     BasicText(
         text = text,
         modifier = modifier,
@@ -147,6 +177,26 @@ internal fun ScaledText(
         softWrap = maxLines > 1,
         autoSize = if (minScale < 1f) TextAutoSize.StepBased(minFontSize = full * minScale, maxFontSize = full, stepSize = 0.5.sp) else null,
     )
+}
+
+internal object ScaledText {
+    /** The largest size from `style.fontSize` down to `minScale` of it (0.5 sp steps) whose one line fits [maxWidth] px. */
+    fun oneLineFontSize(measurer: TextMeasurer, text: String, style: TextStyle, maxWidth: Int, minScale: Float): TextUnit {
+        val full = style.fontSize
+        if (maxWidth == Constraints.Infinity || !full.isSp) return full
+        val min = full.value * minScale
+        var size = full.value
+        while (size > min) {
+            val width = measurer.measure(text, style.copy(fontSize = size.sp), maxLines = 1, softWrap = false).size.width
+            if (width <= maxWidth) return size.sp
+            size -= 0.5f
+        }
+        return min.sp
+    }
+
+    fun fitsOneLine(measurer: TextMeasurer, text: String, style: TextStyle, maxWidth: Int): Boolean =
+        maxWidth == Constraints.Infinity ||
+            measurer.measure(text, style, maxLines = 1, softWrap = false).size.width <= maxWidth
 }
 
 /** Press feedback: scale 0.97 on press-in, 120 ms (Swift `PaywallPressStyle`). */
@@ -226,11 +276,13 @@ fun PaywallBrandHeader(
     showsHeadline: Boolean = true,
     logoMarkOpacity: Double = 1.0,
     onLogoBounds: ((Rect) -> Unit)? = null,
+    /** Android, short screens (`PaywallFit` step 2): a smaller logo; the text keeps its size. */
+    compact: Boolean = false,
 ) {
     val scale = fontScale()
     val accessibilitySize = scale >= DynamicTypeScale.accessibility
     // `@ScaledMetric(relativeTo: .largeTitle) var logoWidth = 120`, capped at 170.
-    val logoWidth = minOf(120f * scale, 170f).dp
+    val logoWidth = minOf((if (compact) PaywallCompact.logoWidth else 120f) * scale, 170f).dp
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
         Column(
             Modifier.paywallEntrance(PaywallEntranceLayer.brand),
@@ -275,10 +327,15 @@ fun PaywallBrandHeader(
  * title; the supporting line is read by TalkBack (it doesn't fit a 4-up tile without compressing the type).
  */
 @Composable
-fun BenefitGrid(modifier: Modifier = Modifier, benefits: List<PaywallBenefit> = PaywallCopy.benefits) {
+fun BenefitGrid(
+    modifier: Modifier = Modifier,
+    benefits: List<PaywallBenefit> = PaywallCopy.benefits,
+    /** Android, short screens (`PaywallFit` step 2). */
+    compact: Boolean = false,
+) {
     CappedTypeSize(DynamicTypeScale.xxLarge) {
         BoxWithConstraints(modifier.fillMaxWidth()) {
-            val grid = BenefitGrid.usesTwoByTwo(width = maxWidth.value, fontScale = fontScale())
+            val grid = BenefitGrid.usesTwoByTwo(width = maxWidth.value, fontScale = fontScale(), compact = compact)
             val columns = if (grid) 2 else 4
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 benefits.withIndex().chunked(columns).forEach { row ->
@@ -301,6 +358,12 @@ fun BenefitGrid(modifier: Modifier = Modifier, benefits: List<PaywallBenefit> = 
 object BenefitGrid {
     /** 2×2 below this width (per tile ≈ 72 pt), or from xLarge text. */
     fun usesTwoByTwo(width: Float, fontScale: Float): Boolean = width < 330f || fontScale >= DynamicTypeScale.xLarge
+
+    /** Compact (short screens): 4-up down to [PaywallCompact.minFourUpTile] per tile. */
+    fun usesTwoByTwo(width: Float, fontScale: Float, compact: Boolean): Boolean {
+        if (!compact) return usesTwoByTwo(width, fontScale)
+        return (width - 3 * 6f) / 4f < PaywallCompact.minFourUpTile || fontScale >= DynamicTypeScale.xLarge
+    }
 }
 
 /** A tiny game perk: pixel icon over (or, in the 2×2 layout, beside) a two-line title. */
@@ -407,7 +470,9 @@ fun SubscriptionOption(
         Column(Modifier.weight(1f)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(PaywallCopy.planName(plan), style = roundedFont(TextStyleKind.title3, FontWeightHeavy), color = PaywallPalette.deepWine)
-                if (isAnnual) BestValuePill()
+                // Android: the pill gives way (its text shrinks) rather than clipping to "BEST VA" on a 360 dp phone at
+                // a large font size.
+                if (isAnnual) BestValuePill(Modifier.weight(1f, fill = false))
             }
             if (trialDays != null) {
                 ScaledText(
@@ -484,21 +549,23 @@ fun RadioMark(isSelected: Boolean, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun BestValuePill() {
+private fun BestValuePill(modifier: Modifier = Modifier) {
     Row(
-        Modifier
+        modifier
             .background(PaywallPalette.goldLight.copy(alpha = 0.55f), CircleShape)
             .padding(horizontal = 8.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PixelGlyph(PaywallSprites.crown, Modifier.size(13.dp, 10.dp))
-        Text(
+        ScaledText(
             PaywallCopy.bestValue,
             style = roundedFont(TextStyleKind.caption2, FontWeightHeavy),
             color = PaywallPalette.deepWine,
             maxLines = 1,
-            softWrap = false,
+            minScale = 0.6f,
+            textAlign = TextAlign.Start,
+            wrapsWhenTooLong = true,
         )
     }
 }
@@ -555,14 +622,18 @@ fun PaywallCTA(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (showsHeart) PixelGlyph(PaywallSprites.heart, Modifier.size(20.dp, 17.dp))
-        Box(Modifier.weight(1f).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
-            // One line normally; at accessibility sizes it wraps and the button grows.
+        BoxWithConstraints(Modifier.weight(1f).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+            // One line normally; at accessibility sizes it wraps and the button grows. Android: also when even 75%
+            // can't fit one line (a 360 dp phone at a 130% font size), where it used to clip ("…FREE TRIAI").
+            val style = roundedFont(TextStyleKind.title3, FontWeightHeavy)
+            val measurer = rememberTextMeasurer()
+            val wraps = accessibilitySize || !PaywallCTA.fitsOneLine(measurer, title, style, constraints.maxWidth)
             ScaledText(
                 title,
-                style = roundedFont(TextStyleKind.title3, FontWeightHeavy),
+                style = style,
                 color = PaywallPalette.warmCream,
-                maxLines = if (accessibilitySize) 4 else 1,
-                minScale = if (accessibilitySize) 1f else 0.75f,
+                maxLines = if (wraps) 4 else 1,
+                minScale = if (wraps) 1f else PaywallCTA.minimumScaleFactor,
                 modifier = Modifier.fillMaxWidth().alpha(if (isLoading) 0f else 1f),
             )
             if (isLoading) {
@@ -570,6 +641,18 @@ fun PaywallCTA(
             }
         }
         Icon(arrow, contentDescription = null, tint = PaywallPalette.warmCream, modifier = Modifier.size(22.dp))
+    }
+}
+
+object PaywallCTA {
+    /** Swift `.minimumScaleFactor(0.75)` on the title. */
+    const val minimumScaleFactor: Float = 0.75f
+
+    /** Whether [title] fits one line [maxWidth] px wide at the smallest size the button shrinks it to. */
+    fun fitsOneLine(measurer: TextMeasurer, title: String, style: TextStyle, maxWidth: Int): Boolean {
+        if (maxWidth == Constraints.Infinity) return true
+        val smallest = style.copy(fontSize = style.fontSize * minimumScaleFactor)
+        return measurer.measure(title, smallest, maxLines = 1, softWrap = false).size.width <= maxWidth
     }
 }
 
@@ -625,7 +708,7 @@ private fun FooterLink(title: String, enabled: Boolean, action: () -> Unit) {
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
-        ScaledText(title, style = roundedFootnote(), color = PaywallPalette.mutedCocoa, maxLines = 1, minScale = 0.8f)
+        ScaledText(title, style = roundedFootnote(), color = PaywallPalette.mutedCocoa, maxLines = 1, minScale = 0.8f, wrapsWhenTooLong = true)
     }
 }
 

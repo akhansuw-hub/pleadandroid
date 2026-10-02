@@ -59,7 +59,7 @@ Version name/code come from `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `
 | Review prompt | Google Play In-App Review at the same moment iOS calls `SKStoreReviewController` |
 | Images | Coil for exhibit photos from Supabase Storage; pixel art via `painterResource` with `FilterQuality.None` (nearest-neighbour, as iOS `.interpolation(.none)`) |
 | Fonts | Fraunces (display) → `res/font`; SF Pro Rounded has no Android equivalent → system default sans (Roboto) with the same weights and sizes; monospaced digits via `FontFeature` `tnum` |
-| Min / target SDK | minSdk 26, targetSdk 35, compileSdk 36 (wave 1: supabase-kt 3.2 / Compose 1.9 refuse to compile against 35; build-time only, see STATUS.md) |
+| Min / target SDK | minSdk 26, targetSdk 36 (raised from 35 on 2026-10-02: Google Play rejects uploads targeting 35), compileSdk 36 (wave 1: supabase-kt 3.2 / Compose 1.9 refuse to compile against 35; build-time only, see STATUS.md) |
 | JDK | Android Studio's bundled JBR 21: `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"` |
 | SDK | `~/Library/Android/sdk` (write `sdk.dir` into `android/local.properties`) |
 

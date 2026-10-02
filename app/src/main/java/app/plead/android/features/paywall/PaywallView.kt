@@ -105,6 +105,7 @@ fun PaywallView(
     onClose: (() -> Unit)? = null,
     openingStage: PaywallStage? = null,
     userId: UUID? = null,
+    onHeroHeight: (androidx.compose.ui.unit.Dp) -> Unit = {},
 ) {
     val store = model.store
     val purchases = model.purchases
@@ -280,7 +281,14 @@ fun PaywallView(
         val viewport = maxHeight.value
         CompositionLocalProvider(LocalPaywallEntrance provides entrance.state) {
             Column(Modifier.fillMaxSize().alpha(contentAlpha)) {
-                Box(Modifier.weight(1f).fillMaxWidth()) {
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    // Android (real-device fix 2026-10-02): what is visible of the scroll area on first view. The
+                    // legal footer is pinned below it; the partner-paid state has no footer, only the navigation bar.
+                    val navInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
+                    // (The unpaid page's last 12 dp dissolve into the footer, so they don't count as visible.)
+                    val available = if (store.isPremium) maxHeight - navInset else maxHeight - PaywallCompact.footerFade
+                    val topInset = with(density) { WindowInsets.statusBars.getTop(density).toDp() }
+                    var compact by remember(available, density.fontScale, store.isPremium) { mutableStateOf(false) }
                     Box(
                         Modifier
                             .fillMaxSize()
@@ -300,55 +308,72 @@ fun PaywallView(
                                     .paywallEntrance(PaywallEntranceLayer.brand),
                             )
                         }
-                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                            // Amendment v: picking a plan may bring the gavel down once (debounced); purchase logic
-                            // never waits on the animation.
-                            PaywallCourtroomHero(
-                                height = PaywallLayout.heroHeight(viewport).dp,
-                                gavelTrigger = planPicks.toString(),
-                                modifier = Modifier.paywallEntrance(PaywallEntranceLayer.hero),
-                            )
-                            // The logo sits fully below the hero's fade, keeping about an "e"-height of clear cream
-                            // between the mark and the courtroom art.
-                            Box(
-                                Modifier
-                                    .widthIn(max = 520.dp)
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp)
-                                    .padding(top = 2.dp),
-                            ) {
-                                if (store.isPremium) {
-                                    PartnerPaidContent(model)
-                                } else {
-                                    Column(Modifier.padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                        PaywallBrandHeader(
-                                            logoMarkOpacity = if (opening.handedOver) 1.0 else 0.0,
-                                            onLogoBounds = { logoSlotInRoot = it },
-                                        )
-                                        BenefitGrid()
-                                        Plans(
-                                            pricesPending = pricesPending,
-                                            products = products,
-                                            selectedPlan = selectedPlan,
-                                            enabled = !busy,
-                                            onSelect = ::select,
-                                        )
-                                        // Amendment z: the CTA follows the plans instead of floating in a pinned bar.
-                                        CtaBlock(
-                                            error = error,
-                                            showsRetry = purchases.loadState == PurchasesService.LoadState.failed && !cta.isPurchasable,
-                                            onRetry = { scope.launch { purchases.loadOfferings() } },
-                                            cta = cta,
-                                            isLoading = busy && !restoring,
-                                            enabled = cta.isPurchasable && !busy,
-                                            onBuy = ::buy,
-                                            modifier = Modifier.padding(top = 5.dp),
-                                        )
+                        // The hero gives back height only when the CTA would otherwise sit under the fold (PaywallFit).
+                        PaywallFittedColumn(
+                            available = available,
+                            standardHero = PaywallLayout.heroHeight(viewport).dp,
+                            topInset = topInset,
+                            compact = compact,
+                            onCompactNeeded = { compact = true },
+                            onHeroHeight = onHeroHeight,
+                            modifier = Modifier.fillMaxWidth(),
+                            hero = {
+                                // Amendment v: picking a plan may bring the gavel down once (debounced); purchase logic
+                                // never waits on the animation.
+                                PaywallCourtroomHero(
+                                    height = PaywallLayout.heroHeight(viewport).dp,
+                                    gavelTrigger = planPicks.toString(),
+                                    modifier = Modifier.paywallEntrance(PaywallEntranceLayer.hero),
+                                )
+                            },
+                            body = {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    // The logo sits fully below the hero's fade, keeping about an "e"-height of clear
+                                    // cream between the mark and the courtroom art.
+                                    Box(
+                                        Modifier
+                                            .widthIn(max = 520.dp)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp)
+                                            .padding(top = 2.dp),
+                                    ) {
+                                        if (store.isPremium) {
+                                            PartnerPaidContent(model)
+                                        } else {
+                                            val gap = if (compact) PaywallCompact.stackSpacing else 7.dp
+                                            Column(Modifier.padding(bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
+                                                PaywallBrandHeader(
+                                                    logoMarkOpacity = if (opening.handedOver) 1.0 else 0.0,
+                                                    onLogoBounds = { logoSlotInRoot = it },
+                                                    compact = compact,
+                                                )
+                                                BenefitGrid(compact = compact)
+                                                Plans(
+                                                    compact = compact,
+                                                    pricesPending = pricesPending,
+                                                    products = products,
+                                                    selectedPlan = selectedPlan,
+                                                    enabled = !busy,
+                                                    onSelect = ::select,
+                                                )
+                                                // Amendment z: the CTA follows the plans instead of floating in a pinned bar.
+                                                CtaBlock(
+                                                    error = error,
+                                                    showsRetry = purchases.loadState == PurchasesService.LoadState.failed && !cta.isPurchasable,
+                                                    onRetry = { scope.launch { purchases.loadOfferings() } },
+                                                    cta = cta,
+                                                    isLoading = busy && !restoring,
+                                                    enabled = cta.isPurchasable && !busy,
+                                                    onBuy = ::buy,
+                                                    modifier = Modifier.padding(top = if (compact) 0.dp else 5.dp),
+                                                )
+                                            }
+                                        }
                                     }
+                                    if (store.isPremium) androidx.compose.foundation.layout.Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
                                 }
-                            }
-                            if (store.isPremium) androidx.compose.foundation.layout.Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
-                        }
+                            },
+                        )
                     }
                     if (!store.isPremium) {
                         // Content scrolling underneath dissolves into the footer instead of meeting a hard edge.
@@ -356,7 +381,7 @@ fun PaywallView(
                             Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
-                                .height(12.dp)
+                                .height(PaywallCompact.footerFade)
                                 .background(Brush.verticalGradient(listOf(PaywallPalette.warmCream.copy(alpha = 0f), PaywallPalette.warmCream))),
                         )
                     }
@@ -424,6 +449,7 @@ internal object PaywallViewState {
 
 @Composable
 private fun Plans(
+    compact: Boolean,
     pricesPending: Boolean,
     products: app.plead.android.services.PaywallProducts,
     selectedPlan: PurchasesService.Plan,
@@ -436,7 +462,7 @@ private fun Plans(
         label = "plans",
         modifier = Modifier.semantics { contentDescription = if (pricesPending) "Loading plans" else "Plans" },
     ) { pending ->
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(if (compact) PaywallCompact.planSpacing else 6.dp)) {
             if (pending) {
                 repeat(3) { i -> PlanSkeletonCard(tall = i == 0, modifier = Modifier.paywallEntrance(PaywallEntranceLayer.plan, index = i)) }
             } else {
@@ -469,7 +495,7 @@ private fun CtaBlock(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier.fillMaxWidth().paywallEntrance(PaywallEntranceLayer.cta),
+        modifier.fillMaxWidth().paywallEntrance(PaywallEntranceLayer.cta).paywallFoldMark(PaywallFold.full),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
@@ -486,7 +512,7 @@ private fun CtaBlock(
                 Text("Couldn't reach Google Play. Try again", style = roundedFootnote(FontWeight.SemiBold), color = PaywallPalette.courtBurgundy)
             }
         }
-        PaywallCTA(state = cta, isLoading = isLoading, enabled = enabled, action = onBuy)
+        PaywallCTA(state = cta, isLoading = isLoading, enabled = enabled, action = onBuy, modifier = Modifier.paywallFoldMark(PaywallFold.cta))
         // Always one line tall, so the layout doesn't jump when prices arrive.
         Text(
             cta.disclosure.ifEmpty { " " },
@@ -534,11 +560,11 @@ private fun PartnerPaidContent(model: AppModel) {
             )
         }
         Column(
-            Modifier.fillMaxWidth().paywallEntrance(PaywallEntranceLayer.cta),
+            Modifier.fillMaxWidth().paywallEntrance(PaywallEntranceLayer.cta).paywallFoldMark(PaywallFold.full),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PaywallCTA(title = "CONTINUE", showsHeart = true) { model.enterApp() }
+            PaywallCTA(title = "CONTINUE", showsHeart = true, modifier = Modifier.paywallFoldMark(PaywallFold.cta)) { model.enterApp() }
             CoupleAccessLine()
         }
     }

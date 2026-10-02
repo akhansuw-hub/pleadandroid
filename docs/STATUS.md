@@ -32,6 +32,64 @@ integrator (wave 4) keeps the summary current. Brief: [PORT.md](PORT.md).
   pill has no live glass refraction / blur (not portable), slow debug cold launches on the emulator.
 - **Needs the user:** see the last section.
 
+## Real-device fixes 2026-10-02
+
+First run on the user's phone (moto g(60)s: 432 × 984 dp, **3-button navigation, font size 130%**, Play release build).
+Reproduced on `visage_phone` with `wm size` / `wm density` / font scale / the navigation overlay, in five
+configurations (Pixel 7 gesture, Pixel 7 3-button, 360 × 640 3-button, 360 × 760 3-button, 432 × 984 3-button at 130%).
+After-shots: `screenshots/{paywall3-17pro-annual-trial, paywall3-17pro-exit-offer, paywall3-17pro-partner-paid,
+welcome-17pro, court-empty}{,-3button,-360x640-3button,-360x760-3button,-432x984-3button-font130}.png`, plus
+`paywall3-17pro-annual-trial-360x760-3button-font130` and `court-empty-360x640-3button-font200`.
+
+1. **Paywall CTA half under the legal footer.** Cause: iOS sizes for its shortest phone (iPhone 16e, 844 pt, 34 pt home
+   indicator); Android phones are shorter, the 3-button bar is 48 dp, and OEM system fonts run wider (the moto's brand
+   font wraps "Present evidence" / "One plan, two people"; Roboto doesn't). Reproduced: CTA cut on 360 × 760, below
+   the fold on 360 × 640 (weekly plan too), disclosure + couple line hidden at the user's phone size; the exit offer's
+   CLAIM sat under the navigation bar on 360 × 640. Fix (`features/paywall/PaywallFit.kt`, new): the body is measured
+   and the hero gives back only what the CTA needs: (1) hero down to the "soft floor" (judge still below the status
+   bar); (2) compact body: logo 120 → 84 dp wide, gaps 7 → 4, plans 6 → 4, exit offer 10 → 6, perk tiles stay 4-up
+   below iOS's 330 pt switch while each keeps ≥ 72 dp (the rule's stated intent); (3) hero down to a hard floor
+   (status bar + 44 dp), the art shifted so the judge stays in view (`PaywallCourtroomPlacement(keepClearTop:)`; 0 is
+   the iOS placement exactly). Text sizes, plans and copy never change; screens that fit as on iOS are untouched
+   (Pixel 7 gesture / 3-button). The exit offer takes the outgoing hero's height from the gate and eases to its own fit
+   over the 0.3 s cross-dissolve (equal heights on iPhone-sized screens, so it still holds still there). Same files:
+   one-line `ScaledText` now really shrinks (BasicText's auto-size never stepped down with soft wrap off: "BEST VALU",
+   "…FREE TRIAI" at 130% on 360 dp); the CTA title wraps (as iOS does at accessibility sizes) when even 75% doesn't
+   fit; the BEST VALUE pill shrinks to 60%, then wraps; footer links wrap rather than clip at 200%. Result: whole CTA
+   above the footer at 100% on all four target sizes and at 130% on the user's phone size; at 130% on 360 × 760 the
+   two-line CTA rests with its last few dp in the footer fade; at 130% on 360 × 640 and at 200% the page scrolls and
+   the CTA scrolls fully clear of the footer.
+2. **Welcome logo not centred.** Cause: `OnboardingShell(autoLayers = true)` (Welcome is its only user) wrapped each
+   child in a full-width `CourtLayer` `Box` aligned top-start, so the narrower logo sat at the left edge in every
+   configuration (the non-animated path already centred). Fix: `OnboardingKit.kt` `Layered` centres the child inside
+   the layer, as SwiftUI's `VStack` does; Welcome's logo carries the test tag `onboarding.welcome.logo`.
+3. **CLOSED sign wrapped as "CLOSE / D".** Cause: the sign is 0.316 × 0.82 of the courtroom width (93 dp on a 360 dp
+   phone) and the 21 sp word with 3 sp tracking is wider. Fix: `courtroom/CourtStyle.kt` `CourtSignText` (one line,
+   no soft wrap, shrink-to-fit down to 25%, tracking in `em`) inside the sign's gold rule (`CourtTranscript.kt`
+   `CourtroomClosedSign`): ≈ 17 dp effective on 360 dp at every font scale, 21 where it fits. Same file: on short
+   screens the "Court is not in session." card moves below the sign instead of covering it when there is room above
+   the tab bar (`CourtroomEmptyState.cardTop`; the iOS place otherwise). Other plaques checked: the SUSTAINED /
+   OVERRULED / OBJECTION stamps, EXHIBIT labels and ALL RISE are already one line without soft wrap; SETTLED OUT OF
+   COURT wraps between words (2 lines by design).
+
+Tests added (JVM / Robolectric, 28): `PaywallFitRuleTests` (9), `PaywallFitLayoutTests` (9: the whole CTA above the
+footer and its fade on Pixel 7 gesture / 3-button, 360 × 640, 360 × 760, 432 × 984 at 130%; scroll-to-whole-CTA at
+200%; exit offer and partner-paid on 360 × 640; one-line fitting), `WelcomeLogoCentreTests` (5: logo centre x = screen
+centre ± 1 dp), `CourtClosedSignTests` (5: one line inside the gold rule at 320 / 360 / 412 / 432 dp × font 1.0 / 1.3 /
+2.0, the iOS size where it fits, the card rule). Each layout suite fails with its fix reverted. Build: JVM 883 run,
+0 failures; lint 0 errors (43 warnings); `assembleDebug` + `assembleRelease` OK. Compose tests (Pixel 7 gesture,
+default): 55 run, 53 passed, 1 skipped (the deliberate one), 1 failed: `PaywallGateComposeTests.
+testNewUserPurchaseThenSecureAccountThenTabs`, environmental: `local.properties` now holds a real `goog_` RevenueCat
+key, so the signed-out demo user's sign-in configures RevenueCat, the emulator has no Play billing
+("PurchaseNotAllowedError"), and the failed offerings fetch replaces the demo prices ("LOADING PRICES"), so there is
+no purchase CTA. iOS `PurchasesService.configure` behaves the same; a demo-mode guard in `services/PurchasesService.kt`
+(or a placeholder key for test runs) would fix it.
+
+Owed: an amendment in the iOS repo's `CONTRACTS-v2.md` recording the Android short-screen paywall fit, the CTA-title
+wrap fallback and the moved empty-state card. Still open on very small or large-text screens: Welcome on 360 × 640
+scrolls (third card below the fold); the exit offer's "No thanks" / footer scroll under the translucent 3-button bar;
+at 200% on 360 × 640 the empty-state card covers the sign and is cut by the tab bar (no room for both).
+
 ## Wave 1: skeleton (done)
 
 | iOS | Android | Notes |

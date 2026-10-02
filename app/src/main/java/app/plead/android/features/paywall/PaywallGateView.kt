@@ -1,6 +1,7 @@
 // Port of ArgueWin/Features/Paywall/PaywallGateView.swift.
 package app.plead.android.features.paywall
 
+import androidx.compose.ui.unit.Dp
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -49,6 +50,9 @@ fun PaywallGateView(model: AppModel, userId: UUID?, modifier: Modifier = Modifie
 
     var stage by remember { mutableStateOf(PaywallGateView.initialStage) }
     var resolving by remember { mutableStateOf(false) }
+    // The standard hero's height as last laid out (Android: PaywallFit can shorten it on short screens), so the exit
+    // offer's hero starts exactly where the outgoing one is.
+    val standardHero = remember { arrayOfNulls<Dp>(1) }
 
     fun closeStandard() {
         if (resolving) return
@@ -94,11 +98,14 @@ fun PaywallGateView(model: AppModel, userId: UUID?, modifier: Modifier = Modifie
                 onClose = ::closeStandard,
                 openingStage = stage,
                 userId = userId,
+                onHeroHeight = { standardHero[0] = it },
                 modifier = Modifier.zIndex(0f).alpha(standardAlpha),
             )
         }
         if (showsExitOffer && offer != null) {
-            ExitOfferPaywallView(model = model, offer = offer, modifier = Modifier.zIndex(1f)) { model.closeGate() }
+            ExitOfferPaywallView(model = model, offer = offer, modifier = Modifier.zIndex(1f), initialHeroHeight = standardHero[0]) {
+                model.closeGate()
+            }
         }
     }
 }

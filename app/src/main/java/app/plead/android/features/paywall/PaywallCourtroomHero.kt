@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -29,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.semantics.Role
@@ -37,6 +40,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -134,8 +138,11 @@ fun PaywallCourtroomScene(pose: CourtroomPose, modifier: Modifier = Modifier) {
     val frames: Map<Int, ImageBitmap> = remember(resources) {
         PaywallCourtroomSprites.Character.entries.flatMap { it.frameDrawables }.associateWith { ImageBitmap.imageResource(resources, it) }
     }
+    // The judge stays clear of the status bar when the hero is squeezed on a short screen (`PaywallFit`).
+    val density = LocalDensity.current
+    val keepClearTop = WindowInsets.statusBars.getTop(density) + with(density) { PaywallFit.judgeClearance.dp.toPx() }
     Canvas(modifier) {
-        val placement = PaywallCourtroomPlacement(hero = Size(size.width, size.height))
+        val placement = PaywallCourtroomPlacement(hero = Size(size.width, size.height), keepClearTop = keepClearTop)
         val src = PaywallCourtroomSprites.sourcePixels
         withTransform({
             translate(placement.art.left, placement.art.top)

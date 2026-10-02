@@ -120,12 +120,20 @@ data class PaywallCourtroomPlacement(
     )
 
     companion object {
-        operator fun invoke(hero: Size): PaywallCourtroomPlacement {
+        /**
+         * [keepClearTop] (Android, short screens): when bottom-aligning would put the judge's head under the status
+         * bar (a hero squeezed by `PaywallFit`), the art moves down until his head is [keepClearTop] from the hero's
+         * top, cropping floor instead of the judge, but never so far that the art stops covering the hero's top.
+         * 0 (the default, and the case on every iPhone-sized hero) is the iOS placement exactly.
+         */
+        operator fun invoke(hero: Size, keepClearTop: Float = 0f): PaywallCourtroomPlacement {
             val src = PaywallCourtroomSprites.sourcePixels
             val fill = maxOf(hero.width / src.width, hero.height / src.height)
             val size = Size(src.width * fill, src.height * fill)
             val left = (hero.width - size.width) / 2
-            val top = hero.height - size.height
+            var top = hero.height - size.height
+            val judgeTop = top + PaywallFit.judgeTopPixel * fill
+            if (keepClearTop > 0f && judgeTop < keepClearTop) top = minOf(0f, top + (keepClearTop - judgeTop))
             return PaywallCourtroomPlacement(art = Rect(left, top, left + size.width, top + size.height), pointsPerPixel = fill)
         }
     }

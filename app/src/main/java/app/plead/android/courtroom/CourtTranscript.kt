@@ -2,6 +2,10 @@
 // scene), and the closed-court empty state.
 package app.plead.android.courtroom
 
+import kotlin.math.roundToInt
+import androidx.compose.ui.layout.layout
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.unit.em
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -136,6 +140,74 @@ private fun PhaseDivider(phase: TrialPhase) {
  * No case is in the courtroom: the same painted room with the lamps down, the judge's chair empty and a CLOSED card on
  * the easel. Laid out in the full size it is given (the host extends it under the status bar and the tab bar).
  */
+/**
+ * The CLOSED card hung on the easel ([rect], in dp). The sign is a fixed share of the screen, so the word stays on one
+ * line and shrinks to fit inside the gold rule (it wrapped as "CLOSE / D" on 360 dp phones). [onTextLayout]: tests.
+ */
+@Composable
+fun CourtroomClosedSign(
+    rect: androidx.compose.ui.geometry.Rect,
+    modifier: Modifier = Modifier,
+    onTextLayout: (androidx.compose.ui.text.TextLayoutResult) -> Unit = {},
+) {
+    BoxWithConstraints(
+        modifier.frameIn(rect).goldFrame(radius = 8.dp).accessibilityHidden(),
+        contentAlignment = Alignment.Center,
+    ) {
+        val inside = CourtroomEmptyState.signTextBounds(maxWidth.value, maxHeight.value)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            ScalesGlyph(size = 16.dp)
+            CourtSignText(
+                CourtroomEmptyState.signText,
+                style = CourtFont.displayM.copy(letterSpacing = CourtroomEmptyState.signTracking),
+                color = PleadColor.cream,
+                modifier = Modifier.widthIn(max = inside.width.dp).heightIn(max = inside.height.dp),
+                onTextLayout = onTextLayout,
+            )
+        }
+    }
+}
+
+object CourtroomEmptyState {
+    const val signText = "CLOSED"
+
+    /** The sign's frame on the easel zone (dp): iOS `.frame(width: easel.width * 0.82, height: easel.height * 0.7)`. */
+    fun signRect(easel: androidx.compose.ui.geometry.Rect): androidx.compose.ui.geometry.Rect =
+        androidx.compose.ui.geometry.Rect(
+            easel.center.x - easel.width * 0.41f, easel.center.y - easel.height * 0.35f,
+            easel.center.x + easel.width * 0.41f, easel.center.y + easel.height * 0.35f,
+        )
+
+    /** iOS `.tracking(3)` on the 21 pt word, as a share of the size so it shrinks with the word. */
+    val signTracking = (3f / 21f).em
+
+    /**
+     * Room for the word inside the gold-ruled sign ([width] × [height] dp): clear of the inner rule (`goldFrame`: 4 dp
+     * inset, 1 dp stroke, + 1 dp air on each side), under the 16 dp glyph and its 4 dp gap.
+     */
+    fun signTextBounds(width: Float, height: Float): androidx.compose.ui.geometry.Size =
+        androidx.compose.ui.geometry.Size(
+            width = (width - 2 * signInset).coerceAtLeast(1f),
+            height = (height - 16f - 4f - 2 * signInset).coerceAtLeast(1f),
+        )
+
+    const val signInset: Float = 6f
+
+    /** Space kept between the sign and the card, and between the card and the tab bar, when the card moves. */
+    const val cardGap: Float = 8f
+
+    /**
+     * The "Court is not in session." card's top (dp). iOS centres it at [iosCentre]; when that covers the sign (a short
+     * screen) it moves down to [cardGap] below the sign, as far as the space above [bottomLimit] allows, never up.
+     */
+    fun cardTop(iosCentre: Float, height: Float, signBottom: Float, bottomLimit: Float): Float {
+        val ios = iosCentre - height / 2f
+        val clear = signBottom + cardGap
+        if (ios >= clear) return ios
+        return maxOf(ios, minOf(clear, bottomLimit - cardGap - height))
+    }
+}
+
 @Composable
 fun CourtroomEmptyState(modifier: Modifier = Modifier, insets: CourtInsets = CourtInsets.zero) {
     BoxWithConstraints(modifier) {
@@ -146,25 +218,26 @@ fun CourtroomEmptyState(modifier: Modifier = Modifier, insets: CourtInsets = Cou
             CourtroomBackground(size = full, closed = true)
 
             // CLOSED sign hung on the easel.
-            Box(
-                Modifier.frameIn(
-                    androidx.compose.ui.geometry.Rect(
-                        easel.center.x - easel.width * 0.41f, easel.center.y - easel.height * 0.35f,
-                        easel.center.x + easel.width * 0.41f, easel.center.y + easel.height * 0.35f,
-                    ),
-                ).goldFrame(radius = 8.dp).accessibilityHidden(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    ScalesGlyph(size = 16.dp)
-                    Text("CLOSED", style = CourtFont.displayM.copy(letterSpacing = 3.sp), color = PleadColor.cream)
-                }
-            }
+            val sign = CourtroomEmptyState.signRect(easel)
+            CourtroomClosedSign(sign)
 
             val cardShape = RoundedCornerShape(PleadRadius.card)
             Column(
                 Modifier
-                    .position(full.width / 2f, min(z.y(0.74f), full.height - insets.bottom - 110f))
+                    // iOS: centred at min(74% down, 110 above the bottom inset). Android (short screens): moved down
+                    // to clear the CLOSED sign when it would cover it and there is room above the tab bar.
+                    .layout { measurable, constraints ->
+                        val p = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                        val top = CourtroomEmptyState.cardTop(
+                            iosCentre = min(z.y(0.74f), full.height - insets.bottom - 110f),
+                            height = p.height.toDp().value,
+                            signBottom = sign.bottom,
+                            bottomLimit = full.height - insets.bottom,
+                        )
+                        val w = if (constraints.hasBoundedWidth) constraints.maxWidth else p.width
+                        val h = if (constraints.hasBoundedHeight) constraints.maxHeight else p.height
+                        layout(w, h) { p.place(((full.width / 2f).dp.toPx() - p.width / 2f).roundToInt(), top.dp.roundToPx()) }
+                    }
                     .padding(horizontal = PleadSpacing.l)
                     .widthIn(max = 360.dp)
                     .pleadShadow(Color.Black.copy(alpha = 0.35f), radius = 14.dp, y = 6.dp, shape = cardShape)

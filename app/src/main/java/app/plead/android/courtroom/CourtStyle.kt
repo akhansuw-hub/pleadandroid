@@ -492,6 +492,38 @@ fun ScaledText(
 }
 
 /**
+ * A word on a fixed-size sign or plaque (the easel's CLOSED card): always one line, shrinking to fit the space it
+ * is given (SwiftUI `.lineLimit(1).minimumScaleFactor`), so it never breaks mid-word at a narrow width or a large
+ * system font size. Letter spacing in `em` shrinks with it. Give it bounded width / height (the sign's inside).
+ */
+@Composable
+fun CourtSignText(
+    text: String,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    minimumScaleFactor: Float = CourtSignText.minimumScaleFactor,
+    onTextLayout: (androidx.compose.ui.text.TextLayoutResult) -> Unit = {},
+) {
+    val max = style.fontSize
+    BasicText(
+        text,
+        modifier,
+        onTextLayout = onTextLayout,
+        style = style.copy(color = color, textAlign = TextAlign.Center),
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Clip,
+        autoSize = TextAutoSize.StepBased(minFontSize = (max.value * minimumScaleFactor).sp, maxFontSize = max, stepSize = 0.25.sp),
+    )
+}
+
+object CourtSignText {
+    /** Low enough for a 21 sp word on the 360 dp easel at a 200% system font size. */
+    const val minimumScaleFactor: Float = 0.25f
+}
+
+/**
  * SwiftUI `.accessibilitySortPriority(p)`: TalkBack visits higher priorities first (Compose traversal index is
  * ascending, so it is negated).
  */

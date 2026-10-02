@@ -35,14 +35,14 @@ fun projectSetting(key: String, fallback: String): String =
 android {
     namespace = "app.plead.android"
     // compileSdk 36, not the brief's 35: supabase-kt 3.2 (androidx.browser 1.9) and Compose 1.9 refuse to be
-    // compiled against 35. Build-time only; runtime behaviour follows targetSdk, which stays 35 (PORT.md §2).
+    // compiled against 35. targetSdk is 36 too: Google Play rejects uploads that target 35 (2026-10-02).
     compileSdk = 36
 
     defaultConfig {
         applicationId = "app.plead.android"
         minSdk = 26
-        targetSdk = 35
-        versionCode = projectSetting("CURRENT_PROJECT_VERSION", "6").toInt()
+        targetSdk = 36
+        versionCode = projectSetting("CURRENT_PROJECT_VERSION", "9").toInt()
         versionName = projectSetting("MARKETING_VERSION", "1.0.0")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -56,6 +56,20 @@ android {
         buildConfigField("boolean", "DEMO_BY_DEFAULT", "false")
     }
 
+    // Release signing (the Play upload key). The keystore and its passwords live outside git: RELEASE_STORE_FILE
+    // (absolute path, or relative to the repo root), RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS and
+    // RELEASE_KEY_PASSWORD in local.properties or the environment. Without them `assembleRelease` still builds,
+    // unsigned.
+    val releaseStoreFile = config("RELEASE_STORE_FILE", "").takeIf { it.isNotEmpty() }?.let { rootProject.file(it) }
+    val releaseSigning = if (releaseStoreFile?.exists() == true) {
+        signingConfigs.create("release") {
+            storeFile = releaseStoreFile
+            storePassword = config("RELEASE_STORE_PASSWORD", "")
+            keyAlias = config("RELEASE_KEY_ALIAS", "upload")
+            keyPassword = config("RELEASE_KEY_PASSWORD", "")
+        }
+    } else null
+
     buildTypes {
         debug {
             buildConfigField("boolean", "DEMO_HARNESS", "true")
@@ -66,6 +80,7 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            releaseSigning?.let { signingConfig = it }
         }
     }
 

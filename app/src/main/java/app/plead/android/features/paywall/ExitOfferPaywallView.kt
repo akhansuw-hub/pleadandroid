@@ -1,6 +1,8 @@
 // Port of ArgueWin/Features/Paywall/ExitOfferPaywallView.swift.
 package app.plead.android.features.paywall
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.animation.core.animateDpAsState
 import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -98,7 +100,14 @@ import kotlinx.coroutines.launch
  *     └─ PaywallLegalFooter
  */
 @Composable
-fun ExitOfferPaywallView(model: AppModel, offer: ExitOfferState, modifier: Modifier = Modifier, onDismiss: () -> Unit) {
+fun ExitOfferPaywallView(
+    model: AppModel,
+    offer: ExitOfferState,
+    modifier: Modifier = Modifier,
+    /** The outgoing standard paywall's hero height (Android: it can differ on short screens, see PaywallFit). */
+    initialHeroHeight: Dp? = null,
+    onDismiss: () -> Unit,
+) {
     val store = model.store
     val purchases = model.purchases
     val scope = rememberCoroutineScope()
@@ -197,6 +206,23 @@ fun ExitOfferPaywallView(model: AppModel, offer: ExitOfferState, modifier: Modif
     // out beneath this one.
     BoxWithConstraints(modifier.fillMaxSize()) {
         val viewport = maxHeight.value
+        val visibleHeight = maxHeight
+        val density = LocalDensity.current
+        // Android (real-device fix 2026-10-02): the visible height above the navigation bar, and the status bar the
+        // squeezed hero keeps the judge clear of (PaywallFit).
+        val navInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
+        val topInset = with(density) { WindowInsets.statusBars.getTop(density).toDp() }
+        var compact by remember(maxHeight, density.fontScale) { mutableStateOf(false) }
+        var fitted by remember { mutableStateOf<Dp?>(null) }
+        // Same height as the outgoing standard hero, and not animated, so it holds still through the cross-dissolve;
+        // only when this screen fits a different hero (short screens) does it ease to it over the same 0.3 s.
+        val handedOver = initialHeroHeight?.let { start ->
+            animateDpAsState(
+                fitted ?: start,
+                tween((PaywallEntranceTokens.exitCrossfade * 1000).toInt(), easing = FastOutSlowInEasing),
+                label = "exitHero",
+            ).value
+        }
         CompositionLocalProvider(LocalPaywallEntrance provides entrance.state) {
             Column(
                 Modifier
@@ -204,85 +230,101 @@ fun ExitOfferPaywallView(model: AppModel, offer: ExitOfferState, modifier: Modif
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Same height as the standard paywall's hero, and not animated: it holds still through the
-                // cross-dissolve while everything below it changes.
-                ExitOfferHero(height = PaywallLayout.heroHeight(viewport).dp)
-                Column(
-                    Modifier
-                        .widthIn(max = 520.dp)
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .offset(y = (-26).dp)
-                        .padding(bottom = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        ExitOfferStamp(Modifier.paywallEntrance(PaywallEntranceLayer.brand))
-                        ScaledText(
-                            "THE COURT HAS\nRECONSIDERED",
-                            style = roundedFont(TextStyleKind.title, FontWeightHeavy).copy(lineHeight = 1.1.em),
-                            color = PaywallPalette.deepWine,
-                            maxLines = 2,
-                            minScale = 0.8f,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .paywallEntrance(PaywallEntranceLayer.brand)
-                                .clearAndSetSemantics {
-                                    contentDescription = "The court has reconsidered"
-                                    heading()
-                                },
-                        )
-                        Text(
-                            offer.subheadline,
-                            style = roundedFont(TextStyleKind.subheadline, FontWeight.Medium),
-                            color = PaywallPalette.darkCocoa.copy(alpha = 0.72f),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.paywallEntrance(PaywallEntranceLayer.sub),
-                        )
-                    }
-                    JudgeQuoteCard(Modifier.paywallEntrance(PaywallEntranceLayer.tile, index = 0))
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        DiscountHero(offer.discountLabel, Modifier.paywallEntrance(PaywallEntranceLayer.plan, index = 0))
-                        AnnualDiscountCard(offer, Modifier.paywallEntrance(PaywallEntranceLayer.plan, index = 1))
-                    }
-                    CoupleAccessReminder(Modifier.paywallEntrance(PaywallEntranceLayer.plan, index = 2))
-                    Column(
-                        Modifier.fillMaxWidth().paywallEntrance(PaywallEntranceLayer.cta),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        error?.let {
-                            Text(it, style = roundedFootnote(FontWeight.Medium), color = PaywallPalette.courtBurgundy, textAlign = TextAlign.Center)
-                        }
-                        ExitOfferCTA(title = offer.ctaTitle, isLoading = busy && !restoring, enabled = !busy, action = ::claim)
-                        Text(offer.renewalCopy, style = roundedFootnote(), color = PaywallPalette.mutedCocoa, textAlign = TextAlign.Center)
-                    }
-                    Column(
-                        Modifier.fillMaxWidth().paywallEntrance(PaywallEntranceLayer.footer),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(
+                PaywallFittedColumn(
+                    available = visibleHeight - navInset,
+                    standardHero = PaywallLayout.heroHeight(viewport).dp,
+                    topInset = topInset,
+                    compact = compact,
+                    onCompactNeeded = { compact = true },
+                    heroOverride = handedOver,
+                    onHeroHeight = { if (fitted != it) fitted = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    hero = { ExitOfferHero(height = PaywallLayout.heroHeight(viewport).dp) },
+                    body = {
+                        Column(
                             Modifier
-                                .heightIn(min = 44.dp)
-                                .clickable(enabled = !busy, role = Role.Button) { decline("no_thanks") },
-                            contentAlignment = Alignment.Center,
+                                .widthIn(max = 520.dp)
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                                .offset(y = (-26).dp)
+                                .padding(bottom = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(if (compact) PaywallCompact.exitStackSpacing else 10.dp),
                         ) {
-                            Text(
-                                "No thanks, not now",
-                                style = roundedFont(TextStyleKind.subheadline, FontWeight.SemiBold),
-                                color = PaywallPalette.courtBurgundy,
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                ExitOfferStamp(Modifier.paywallEntrance(PaywallEntranceLayer.brand))
+                                ScaledText(
+                                    "THE COURT HAS\nRECONSIDERED",
+                                    style = roundedFont(TextStyleKind.title, FontWeightHeavy).copy(lineHeight = 1.1.em),
+                                    color = PaywallPalette.deepWine,
+                                    maxLines = 2,
+                                    minScale = 0.8f,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .paywallEntrance(PaywallEntranceLayer.brand)
+                                        .clearAndSetSemantics {
+                                            contentDescription = "The court has reconsidered"
+                                            heading()
+                                        },
+                                )
+                                Text(
+                                    offer.subheadline,
+                                    style = roundedFont(TextStyleKind.subheadline, FontWeight.Medium),
+                                    color = PaywallPalette.darkCocoa.copy(alpha = 0.72f),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.paywallEntrance(PaywallEntranceLayer.sub),
+                                )
+                            }
+                            JudgeQuoteCard(Modifier.paywallEntrance(PaywallEntranceLayer.tile, index = 0))
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                DiscountHero(offer.discountLabel, Modifier.paywallEntrance(PaywallEntranceLayer.plan, index = 0))
+                                AnnualDiscountCard(offer, Modifier.paywallEntrance(PaywallEntranceLayer.plan, index = 1))
+                            }
+                            CoupleAccessReminder(Modifier.paywallEntrance(PaywallEntranceLayer.plan, index = 2))
+                            Column(
+                                Modifier.fillMaxWidth().paywallEntrance(PaywallEntranceLayer.cta).paywallFoldMark(PaywallFold.full),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                error?.let {
+                                    Text(it, style = roundedFootnote(FontWeight.Medium), color = PaywallPalette.courtBurgundy, textAlign = TextAlign.Center)
+                                }
+                                ExitOfferCTA(
+                                    title = offer.ctaTitle,
+                                    isLoading = busy && !restoring,
+                                    enabled = !busy,
+                                    action = ::claim,
+                                    modifier = Modifier.paywallFoldMark(PaywallFold.cta),
+                                )
+                                Text(offer.renewalCopy, style = roundedFootnote(), color = PaywallPalette.mutedCocoa, textAlign = TextAlign.Center)
+                            }
+                            Column(
+                                Modifier.fillMaxWidth().paywallEntrance(PaywallEntranceLayer.footer),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Box(
+                                    Modifier
+                                        .heightIn(min = 44.dp)
+                                        .clickable(enabled = !busy, role = Role.Button) { decline("no_thanks") },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        "No thanks, not now",
+                                        style = roundedFont(TextStyleKind.subheadline, FontWeight.SemiBold),
+                                        color = PaywallPalette.courtBurgundy,
+                                    )
+                                }
+                                PaywallLegalFooter(
+                                    restoring = restoring,
+                                    enabled = !busy,
+                                    onRestore = ::restore,
+                                    onTerms = { uriHandler.openUri(PaywallCopy.termsURL) },
+                                    onPrivacy = { uriHandler.openUri(PaywallCopy.privacyURL) },
+                                )
+                            }
                         }
-                        PaywallLegalFooter(
-                            restoring = restoring,
-                            enabled = !busy,
-                            onRestore = ::restore,
-                            onTerms = { uriHandler.openUri(PaywallCopy.termsURL) },
-                            onPrivacy = { uriHandler.openUri(PaywallCopy.privacyURL) },
-                        )
-                    }
-                }
+                    },
+                )
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
             PaywallCloseButton(

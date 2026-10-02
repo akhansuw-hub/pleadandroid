@@ -2,6 +2,7 @@
 // story before forms. No auth, no permissions.
 package app.plead.android.features.onboarding
 
+import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -79,6 +80,8 @@ object OnboardingWelcomeView {
     const val cta = "ENTER THE COURT"
     /** Kept from the previous Welcome so UI tests keep working. */
     const val ctaIdentifier = "onboarding.begin"
+    /** The logo lockup (tests: centred on the screen). */
+    const val logoTag = "onboarding.welcome.logo"
 
     data class Step(val title: String, val subtitle: String, val icon: CourtKitIcon, val color: Color)
 
@@ -113,7 +116,12 @@ fun OnboardingWelcomeView(app: AppModel) {
         autoLayers = true,
         spacing = S.stack,
         hero = {
-            PleadLogo(strapline = true, width = OnboardingKitTokens.Size.welcomeLogo, heartScale = heart.value.toDouble())
+            PleadLogo(
+                modifier = Modifier.testTag(OnboardingWelcomeView.logoTag),
+                strapline = true,
+                width = OnboardingKitTokens.Size.welcomeLogo,
+                heartScale = heart.value.toDouble(),
+            )
         },
         content = {
             item { CourtHeadline(OnboardingWelcomeView.headline, Modifier.padding(top = S.tight), size = CourtHeadline.Size.display) }

@@ -332,10 +332,20 @@ fun OnboardingShell(
     }
 }
 
+/**
+ * One child of the shell's centred column (SwiftUI's `VStack` centres every child). The layered path wraps it in a
+ * full-width [CourtLayer], whose `Box` aligns top-start, so the child is centred inside it too: without that a
+ * narrower child (Welcome's logo) sat at the left edge.
+ */
 @Composable
 private fun Layered(autoLayers: Boolean, layer: Int, style: CourtLayerStyle, content: @Composable () -> Unit) {
-    if (autoLayers) CourtLayer(layer, Modifier.fillMaxWidth(), style = style) { content() }
-    else Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { content() }
+    if (autoLayers) {
+        CourtLayer(layer, Modifier.fillMaxWidth(), style = style) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { content() }
+        }
+    } else {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) { content() }
+    }
 }
 
 /** `OnboardingShell`'s static rules (Swift statics on the generic struct). */

@@ -32,7 +32,7 @@ app/src/androidTest/   Compose tests (need an emulator)
 local.properties.example
 ```
 
-Package and `applicationId`: `app.plead.android`. minSdk 26, targetSdk 35, compileSdk 36.
+Package and `applicationId`: `app.plead.android`. minSdk 26, targetSdk 36 (Google Play requires it since the first upload, 2026-10-02), compileSdk 36.
 Version name/code are read from the iOS repo's `project.yml` when the project sits next to it; standalone they fall
 back to `1.0.0` / `6` (`app/build.gradle.kts`).
 
