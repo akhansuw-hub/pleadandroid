@@ -9,11 +9,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppConfigTests {
-    /** Amendment ap: the website domain carries invites; old `plead.app` hosts still route. */
+    /** Amendment bc: the website domain carries invites; the earlier hosts and the apex still route. */
     @Test fun websiteDomain() {
-        assertEquals("plead-drab.vercel.app", AppConfig.universalLinkHost)
-        assertEquals("https://plead-drab.vercel.app/join/ABC123", AppConfig.inviteURL(code = "ABC123"))
-        assertEquals(setOf("plead.app", "www.plead.app"), AppConfig.legacyUniversalLinkHosts)
+        assertEquals("www.plead-app.com", AppConfig.universalLinkHost)
+        assertEquals("https://www.plead-app.com/join/ABC123", AppConfig.inviteURL(code = "ABC123"))
+        assertEquals(setOf("plead-drab.vercel.app", "plead.app", "www.plead.app", "plead-app.com"), AppConfig.legacyUniversalLinkHosts)
         assertEquals("plead://login-callback", AppConfig.authRedirectURL)
     }
 

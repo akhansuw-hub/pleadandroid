@@ -52,7 +52,7 @@ Version name/code come from `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `
 | Push | Firebase Cloud Messaging; token registered through `register_push` with `platform: "fcm"` (amendment az). Payloads identical to APNs (title/body/data), no emojis |
 | Live Activity | no Android equivalent → `push/CourtSessionNotification.kt`: an ongoing notification (`setOngoing(true)`) showing the same phase/turn/countdown state the Live Activity shows, updated from the same pushes and from app state. `register_live_activity` is never called from Android |
 | Widgets | Glance app widgets reading the same `WidgetSnapshot` JSON (`Shared/WidgetSnapshot.swift`) stored via DataStore; same three families as PleadWidgets (small / medium / lock-screen ↔ small / medium / a 1×1 "glance" cell) |
-| Deep / universal links | intent filters for `plead://` and `https://plead-drab.vercel.app/join/*` (+ legacy hosts), routed by `DeepLinkRouter` like iOS |
+| Deep / universal links | intent filters for `plead://` and `https://www.plead-app.com/join/*` (+ apex `plead-app.com` and legacy hosts, amendment bc), routed by `DeepLinkRouter` like iOS |
 | Haptics | `HapticFeedback` / `Vibrator` with the same call sites as `UIImpactFeedbackGenerator` in Swift (`PaywallOpeningHaptics`, court beats) |
 | Reduce Motion | `Settings.Global.ANIMATOR_DURATION_SCALE == 0` or the demo flag → same branches as `accessibilityReduceMotion` |
 | ATT / AppsFlyer | no ATT prompt on Android. AppsFlyer Android SDK started only when `APPSFLYER_DEV_KEY` is set (amendment at); the same events as `Features/Paywall/Analytics.swift` |

@@ -118,7 +118,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * iOS `.onOpenURL` / universal links / `userNotificationCenter(_:didReceive:)`: every `plead://…` or
-     * `https://plead-drab.vercel.app/join/…` link goes to the deep-link router (the auth callback included, which
+     * `https://www.plead-app.com/join/…` link goes to the deep-link router (the auth callback included, which
      * the router hands to AuthService); a tapped court notification carries its payload as extras.
      */
     private fun handleIntent(intent: Intent?) {

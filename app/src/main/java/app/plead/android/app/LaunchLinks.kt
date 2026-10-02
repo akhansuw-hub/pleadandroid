@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 object LaunchLinks {
     private val _links = MutableSharedFlow<Uri>(replay = 1, extraBufferCapacity = 8, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    /** Every `plead://…` / `https://plead-drab.vercel.app/join/…` link the app was opened with, newest replayed. */
+    /** Every `plead://…` / `https://www.plead-app.com/join/…` link the app was opened with, newest replayed. */
     val links: SharedFlow<Uri> = _links.asSharedFlow()
 
     fun emit(uri: Uri) {

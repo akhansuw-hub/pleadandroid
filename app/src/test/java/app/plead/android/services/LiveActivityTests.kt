@@ -323,7 +323,7 @@ class PushPayloadTests {
         val id = UUID.randomUUID()
         val info: Map<String, Any?> = mapOf(
             "aps" to mapOf("alert" to mapOf("title" to "All rise"), "category" to "verdict", "thread-id" to id.uuidString),
-            "data" to mapOf("link" to "https://plead-drab.vercel.app/case/${id.uuidString}?screen=verdict", "case_id" to id.uuidString, "screen" to "court"),
+            "data" to mapOf("link" to "https://www.plead-app.com/case/${id.uuidString}?screen=verdict", "case_id" to id.uuidString, "screen" to "court"),
         )
         assertEquals(DeepLink.caseRoute(CaseRoute(id, CaseScreen.verdict)), PushService.link(info))
         val legacy: Map<String, Any?> = mapOf("case_id" to id.uuidString, "screen" to "summons")

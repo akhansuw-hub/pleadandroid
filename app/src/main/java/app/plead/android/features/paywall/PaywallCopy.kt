@@ -113,6 +113,6 @@ object PaywallCopy {
         get() = listOf(strapline, headline, sub, coupleAccess, partnerPaid, partnerPaidDetail, bestValue, activating, restoredActivating) +
             benefits.flatMap { listOf(it.title, it.detail) } + PurchasesService.Plan.entries.map(::planName)
 
-    const val termsURL = "https://plead-drab.vercel.app/terms/"
-    const val privacyURL = "https://plead-drab.vercel.app/privacy/"
+    const val termsURL = "https://www.plead-app.com/terms/"
+    const val privacyURL = "https://www.plead-app.com/privacy/"
 }

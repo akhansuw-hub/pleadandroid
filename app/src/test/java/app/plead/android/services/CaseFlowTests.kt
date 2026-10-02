@@ -100,19 +100,22 @@ class DeepLinkTests {
     private fun url(s: String) = URI(s)
 
     @Test fun universalJoinLink() {
-        assertEquals(DeepLink.join("ABC123"), DeepLink.parse(url("https://plead-drab.vercel.app/join/abc123")))
-        assertEquals(DeepLink.join("ABC123"), DeepLink.parse(url("https://plead-drab.vercel.app/join/abc123/")))
+        assertEquals(DeepLink.join("ABC123"), DeepLink.parse(url("https://www.plead-app.com/join/abc123")))
+        assertEquals(DeepLink.join("ABC123"), DeepLink.parse(url("https://www.plead-app.com/join/abc123/")))
         assertNull(DeepLink.parse(url("https://evil.example/join/ABC123")))
-        assertNull(DeepLink.parse(url("https://plead-drab.vercel.app.evil.example/join/ABC123")))
-        assertNull(DeepLink.parse(url("https://plead-drab.vercel.app/join/ABC")))
+        assertNull(DeepLink.parse(url("https://www.plead-app.com.evil.example/join/ABC123")))
+        assertNull(DeepLink.parse(url("https://www.plead-app.com/join/ABC")))
     }
 
-    /** Amendment ap: the website domain carries invites; old `plead.app` links still parse. */
+    /** Amendment bc: the website domain carries invites; links on the earlier hosts and the apex still parse. */
     @Test fun websiteDomain() {
-        assertEquals("plead-drab.vercel.app", AppConfig.universalLinkHost)
-        assertEquals("https://plead-drab.vercel.app/join/ABC123", AppConfig.inviteURL(code = "ABC123"))
+        assertEquals("www.plead-app.com", AppConfig.universalLinkHost)
+        assertEquals("https://www.plead-app.com/join/ABC123", AppConfig.inviteURL(code = "ABC123"))
+        assertEquals(DeepLink.join("ABC123"), DeepLink.parse(url("https://plead-app.com/join/abc123")))
+        assertEquals(DeepLink.join("ABC123"), DeepLink.parse(url("https://plead-drab.vercel.app/join/abc123")))
         assertEquals(DeepLink.join("ABC123"), DeepLink.parse(url("https://plead.app/join/abc123")))
         assertEquals(DeepLink.join("ABC123"), DeepLink.parse(url("https://www.plead.app/join/abc123")))
+        assertNull(DeepLink.parse(url("https://plead-drab.vercel.app.evil.example/join/ABC123")))
     }
 
     @Test fun deliberationPushLandsInCourt() {
@@ -182,7 +185,7 @@ class WidgetDeepLinkTests {
     @Test fun queryScreenLinksStillWork() { // amendment ah: the `?screen=` push form now lives on plead://
         assertEquals(DeepLink.caseRoute(CaseRoute(id, CaseScreen.verdict)), DeepLink.parse(URI("plead://case/${id.uuidString}?screen=verdict")))
         assertEquals(DeepLink.join("ABC123"), DeepLink.parse(URI("plead://join/abc123")))
-        assertEquals(DeepLink.join("ABC123"), DeepLink.parse(URI("https://plead-drab.vercel.app/join/ABC123")))
+        assertEquals(DeepLink.join("ABC123"), DeepLink.parse(URI("https://www.plead-app.com/join/ABC123")))
     }
 
     @Test fun pushPrefersDataLink() {

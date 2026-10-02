@@ -19,9 +19,9 @@ class InviteCodeTests {
     }
 
     @Test fun pastedInvitesGiveTheirCode() {
-        assertEquals("XK7P2Q", InviteCode.sanitize("https://plead-drab.vercel.app/join/xk7p2q"))
+        assertEquals("XK7P2Q", InviteCode.sanitize("https://www.plead-app.com/join/xk7p2q"))
         assertEquals("XK7P2Q", InviteCode.sanitize("plead://join/XK7P2Q"))
-        val message = "You've been summoned. Join me on Plead with code XK7P2Q. https://plead-drab.vercel.app/join/XK7P2Q"
+        val message = "You've been summoned. Join me on Plead with code XK7P2Q. https://www.plead-app.com/join/XK7P2Q"
         assertEquals("XK7P2Q", InviteCode.sanitize(message))
         assertEquals("XK7P2Q", InviteCode.sanitize("You've been summoned. Join me on Plead with code XK7P2Q."))
     }

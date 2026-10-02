@@ -36,11 +36,14 @@ object AppConfig {
     const val authRedirectScheme = "plead"
     const val authRedirectHost = "login-callback"
 
-    /** Universal-link host for couple invites (the website, CONTRACTS-v2 amendment ap). */
-    const val universalLinkHost = "plead-drab.vercel.app"
+    /** Universal-link host for couple invites (the website, CONTRACTS-v2 amendment bc). */
+    const val universalLinkHost = "www.plead-app.com"
 
-    /** Hosts that no longer serve the app but whose old links still route if Android opens them (amendment ap). */
-    val legacyUniversalLinkHosts: Set<String> = setOf("plead.app", "www.plead.app")
+    /**
+     * Other hosts whose links still route if Android opens them: the earlier website hosts (amendments ap, bc) and
+     * the apex `plead-app.com`, which the manifest's App Links filter also claims (it redirects to `www`).
+     */
+    val legacyUniversalLinkHosts: Set<String> = setOf("plead-drab.vercel.app", "plead.app", "www.plead.app", "plead-app.com")
 
     fun inviteURL(code: String): String = "https://$universalLinkHost/join/$code"
 

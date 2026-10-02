@@ -47,13 +47,15 @@
                 <data android:scheme="plead" />
             </intent-filter>
 
-            <!-- Couple invites on the website (amendment ap) + the legacy hosts. Verification needs
+            <!-- Couple invites on the website (amendment bc: www.plead-app.com, apex plead-app.com) + the legacy hosts. Verification needs
                  /.well-known/assetlinks.json on each host (see docs/android-port). -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" />
+                <data android:host="www.plead-app.com" />
+                <data android:host="plead-app.com" />
                 <data android:host="plead-drab.vercel.app" />
                 <data android:host="plead.app" />
                 <data android:host="www.plead.app" />

@@ -95,7 +95,7 @@ at 200% on 360 × 640 the empty-state card covers the sign and is cut by the tab
 | iOS | Android | Notes |
 |---|---|---|
 | `project.yml`, `Config.xcconfig` | `android/` Gradle project, `app/build.gradle.kts`, `local.properties(.example)` | AGP 8.13.2, Gradle 9.1.0, Kotlin 2.2.20. Version name/code are read from `project.yml`. |
-| `Info.plist` / entitlements | `AndroidManifest.xml` | `plead://`, `plead://login-callback`, `https://plead-drab.vercel.app/join/*` + legacy hosts (autoVerify). FCM service and Glance receiver declared (stubs until 3f). |
+| `Info.plist` / entitlements | `AndroidManifest.xml` | `plead://`, `plead://login-callback`, `https://www.plead-app.com/join/*` + apex `plead-app.com` + legacy hosts (autoVerify; amendment bc). FCM service and Glance receiver declared (stubs until 3f). |
 | `Assets.xcassets`, `Resources/Fonts` | `res/drawable-nodpi`, `res/font`, adaptive icon, `values/asset_colors.xml` | `tools/android/import_assets.sh` (rerunnable). iOS scale per image: `designsystem/PleadAssets.kt`. |
 | `DesignSystem/Tokens.swift` | `designsystem/Tokens.kt` | `PleadColor`, `PleadRadius`, `PleadSpacing`, `PleadFont`, `PleadMotion`, `PleadCopy`. |
 | `DesignSystem/Typography.swift`, `CourtFont` (CourtStyle.swift) | `designsystem/Typography.kt` | `FrauncesFont`, `PleadType`, `TextStyleKind`, `CourtFont`. `CourtStyle.kt` (wave 3a) must not redefine `CourtFont`. |
@@ -673,7 +673,7 @@ One list for everything the port cannot do without the user's accounts or decisi
   provider enabled.
 - **Sign in with Apple on Android:** the Supabase Apple provider enabled for the OAuth (web) flow (Services ID + secret
   key); until then the app detects it is off (`AuthService.isAppleAvailable()`).
-- **App Links:** `/.well-known/assetlinks.json` on `plead-drab.vercel.app` with the release signing SHA-256 so
+- **App Links:** `/.well-known/assetlinks.json` on `www.plead-app.com` (amendment bc) with the release signing SHA-256 so
   `/join/` links verify.
 - **AppsFlyer:** the dev key in `local.properties` if attribution should run on Android.
 - **Legal / business facts:** unchanged from iOS: bracketed placeholders until supplied.

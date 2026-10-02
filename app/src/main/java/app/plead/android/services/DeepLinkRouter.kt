@@ -45,7 +45,7 @@ sealed class DeepLink {
 
     companion object {
         /**
-         * `https://plead-drab.vercel.app/join/ABC123`, `plead://join/ABC123`,
+         * `https://www.plead-app.com/join/ABC123`, `plead://join/ABC123`,
          * `plead://case/<uuid>?screen=court`, `plead://login-callback#...`,
          * and the amendment-o scheme: `plead://case/<uuid>/plea|turn|settlement|verdict|judgement|deliberation`,
          * `plead://cases`, `plead://home`.
@@ -141,7 +141,7 @@ sealed class DeepLink {
 
 /** Holds deep links until the app is ready to act on them (signed in, store loaded). */
 class DeepLinkRouter {
-    /** Invite code from `plead-drab.vercel.app/join/CODE`, consumed by the link step / Home invite. */
+    /** Invite code from `www.plead-app.com/join/CODE`, consumed by the link step / Home invite. */
     var pendingJoinCode: String? by mutableStateOf(null)
 
     /** Case to open, consumed by the tab shell once data is loaded. */

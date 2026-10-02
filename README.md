@@ -106,6 +106,6 @@ Things the app cannot do without the owner's accounts or decisions (kept current
   `USE_FINGERPRINT`, AppsFlyer vendor permissions), and whether `targetSdk 36` is now required.
 - **Google sign-in:** `GOOGLE_WEB_CLIENT_ID` and the Supabase Google provider.
 - **Sign in with Apple on Android:** the Supabase Apple provider for the OAuth (web) flow (Services ID + key).
-- **App Links:** `/.well-known/assetlinks.json` on `plead-drab.vercel.app` with the release signing SHA-256.
+- **App Links:** `/.well-known/assetlinks.json` on `www.plead-app.com` (amendment bc) with the release signing SHA-256.
 - **AppsFlyer:** the dev key, if attribution should run on Android.
 - **Legal / business facts:** bracketed placeholders until supplied, as on iOS.

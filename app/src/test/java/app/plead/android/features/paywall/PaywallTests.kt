@@ -289,11 +289,11 @@ class PaywallEntranceTests {
     }
 }
 
-/** `websiteDomain` (ModelDecodingTests.swift), the PaywallCopy half (amendment ap). */
+/** `websiteDomain` (ModelDecodingTests.swift), the PaywallCopy half (amendment bc). */
 class PaywallWebsiteDomainTests {
     @Test fun websiteDomain() {
-        assertEquals("https://plead-drab.vercel.app/terms/", PaywallCopy.termsURL)
-        assertEquals("https://plead-drab.vercel.app/privacy/", PaywallCopy.privacyURL)
+        assertEquals("https://www.plead-app.com/terms/", PaywallCopy.termsURL)
+        assertEquals("https://www.plead-app.com/privacy/", PaywallCopy.privacyURL)
     }
 }
 
