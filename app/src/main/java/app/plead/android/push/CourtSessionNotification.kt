@@ -328,9 +328,19 @@ class CourtSessionNotification(
         /** Notification tag of every court-session notification. */
         const val tag = "court_session"
 
-        /** Its own quiet channel (updates never alert; the alert pushes do). */
-        const val channelId = "court_session"
+        /**
+         * Its own channel. Default importance, so the session sits with the alerting notifications and keeps its
+         * status-bar icon (the iOS Live Activity is prominent on the Lock Screen), but without sound or vibration on
+         * the channel and `setSilent` / `setOnlyAlertOnce` on every post: it never makes a noise or pops a heads-up
+         * (the alert pushes do that). `_v2` because channel settings are immutable once created: the first build's
+         * low-importance channel [legacyChannelIds] is deleted. Amendment pending in CONTRACTS-v2.
+         */
+        const val channelId = "court_session_v2"
         const val channelName = "Court in session"
+        const val channelImportance = NotificationManager.IMPORTANCE_DEFAULT
+
+        /** Earlier ids of this channel (`court_session`: IMPORTANCE_LOW, filed under "Silent"). */
+        val legacyChannelIds = listOf("court_session")
 
         private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
 
@@ -341,14 +351,19 @@ class CourtSessionNotification(
 
         fun ensureChannel(context: Context) {
             val manager = context.getSystemService(NotificationManager::class.java) ?: return
+            legacyChannelIds.forEach { old -> if (manager.getNotificationChannel(old) != null) manager.deleteNotificationChannel(old) }
             if (manager.getNotificationChannel(channelId) != null) return
-            manager.createNotificationChannel(
-                NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW).apply {
-                    // Lock-screen-safe by construction (generic headline; the case title only with the opt-in).
-                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                    setShowBadge(false)
-                },
-            )
+            manager.createNotificationChannel(channel())
+        }
+
+        /** The channel as created (default importance, silent: no sound, no vibration, no badge). */
+        fun channel(): NotificationChannel = NotificationChannel(channelId, channelName, channelImportance).apply {
+            // Lock-screen-safe by construction (generic headline; the case title only with the opt-in).
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setShowBadge(false)
+            setSound(null, null)
+            enableVibration(false)
+            vibrationPattern = null
         }
 
         /** "021" (Swift `LAFormat.number`). */
@@ -449,7 +464,7 @@ class CourtSessionNotification(
                 .setSilent(true)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             if (countdown != null) {
                 builder.setUsesChronometer(true).setChronometerCountDown(true).setWhen(countdown.second.toEpochMilli()).setShowWhen(true)
             } else {

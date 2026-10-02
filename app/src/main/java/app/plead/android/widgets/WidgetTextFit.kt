@@ -10,6 +10,8 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.graphics.Typeface
 import android.util.TypedValue
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 
@@ -25,12 +27,30 @@ object WidgetTextFit {
             typeface = if (serifBold) Typeface.create(Typeface.SERIF, Typeface.BOLD) else Typeface.DEFAULT_BOLD
             textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, size.value, metrics)
         }
-        val available = widthDp * metrics.density
-        val measured = paint.measureText(text)
-        if (measured <= available) return size
-        val scale = (available / measured).coerceAtLeast(minScale)
-        // Round down to a quarter sp so the launcher's own rounding never pushes it back over.
-        return (kotlin.math.floor(size.value * scale * 4f) / 4f).sp
+        return scaledSize(size.value, paint.measureText(text), widthDp * metrics.density, minScale).sp
+    }
+
+    /**
+     * The one-line `.minimumScaleFactor` rule both renderers share: [sizeSp] when [measuredPx] fits [availablePx],
+     * else shrunk in proportion, never below `sizeSp * minScale`, rounded down to a quarter sp (so the renderer's
+     * own rounding never pushes it back over).
+     */
+    fun scaledSize(sizeSp: Float, measuredPx: Float, availablePx: Float, minScale: Float): Float {
+        if (measuredPx <= availablePx || availablePx <= 0f) return sizeSp
+        val scale = (availablePx / measuredPx).coerceAtLeast(minScale)
+        return kotlin.math.floor(sizeSp * scale * 4f) / 4f
+    }
+
+    /**
+     * App Compose (the onboarding widget illustration): the [style] font size at which [text] fits one line of
+     * [maxWidthPx], measured with Compose's own [measurer] in that style, down to `style.fontSize * minScale`.
+     */
+    fun fittedStyle(measurer: TextMeasurer, text: String, style: TextStyle, maxWidthPx: Int, minScale: Float): TextStyle {
+        val size = style.fontSize
+        if (!size.isSp || maxWidthPx <= 0 || text.isEmpty()) return style
+        val measured = measurer.measure(text, style, softWrap = false, maxLines = 1).size.width.toFloat()
+        val fitted = scaledSize(size.value, measured, maxWidthPx.toFloat(), minScale)
+        return if (fitted == size.value) style else style.copy(fontSize = fitted.sp)
     }
 
     /**
@@ -57,5 +77,36 @@ object WidgetTextFit {
             if ((layout.lineCount <= maxLines && wordsWhole && fitsHeight) || scale <= minScale) return sp.sp
             scale = (scale - 0.05f).coerceAtLeast(minScale)
         }
+    }
+}
+
+/**
+ * SwiftUI `Text(text).lineLimit(1).minimumScaleFactor(minScale)` in app Compose: shrinks [style] until [text] fits
+ * the available width (down to [minScale]), then tail-truncates as before.
+ */
+@androidx.compose.runtime.Composable
+fun WidgetFitText(
+    text: String,
+    style: TextStyle,
+    color: androidx.compose.ui.graphics.Color,
+    minScale: Float,
+    modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier,
+) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier, contentAlignment = androidx.compose.ui.Alignment.Center) {
+        val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+        val maxWidth = constraints.maxWidth
+        // Measure what `Text` will draw: the theme's text style (letter spacing, line height…) merged with [style].
+        val merged = androidx.compose.material3.LocalTextStyle.current.merge(style)
+        val fitted = androidx.compose.runtime.remember(text, merged, maxWidth) {
+            if (constraints.hasBoundedWidth) WidgetTextFit.fittedStyle(measurer, text, merged, maxWidth, minScale) else merged
+        }
+        androidx.compose.material3.Text(
+            text,
+            style = fitted,
+            color = color,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
     }
 }

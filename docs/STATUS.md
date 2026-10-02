@@ -343,8 +343,16 @@ Remaining gaps (Android vs iOS, all small):
 - Tab bar: Android draws the configured paper-white bar (`AppDelegate.styleNavigationBars`) on every tab; iOS 26's
   Liquid Glass renders it dark over the Court.
 - Tab stacks are recreated on tab switch (scroll position of Home/Cases/Us is not kept as `TabView` does).
-- `AWScroll judgement|panel` lands the anchor a little lower than iOS (card not at the very top).
-- Scheduling half sheet: its last line ("If you don't respond in …") sits at the bottom edge in the partial detent.
+- Fixed (polish/misc): `AWScroll judgement|panel` landed the anchor 16 dp low (the record column's padding sits
+  inside its scroll, the anchor frames inside that padding); `ScrollAnchors.scrollTo(contentPaddingTop:)` now puts the
+  card right under the nav bar as `scrollTo(anchor: .top)` does.
+- Fixed (polish/misc): scheduling half sheet. A Material sheet slides one full-size sheet half off screen, so the end
+  of the content (its last line, the xl padding and the navigation-bar inset) sat below the screen edge. Partial
+  `CaseSheetHost` sheets are now full height in the expanded state (iOS `.large`) and lay the content out in the part
+  that is on screen (`SheetDetentLayout.visibleHeight`), as iOS lays a detent sheet out at the detent height: the
+  scroll ends with xl padding + the navigation-bar inset in both states. Roboto's taller lines make the content
+  taller than the half detent, so there the last line scrolls (drag up expands first, as iOS) rather than sitting at
+  the edge. Same for the exhibit detail sheet (also `[.medium, .large]`).
 - Judge nameplate can truncate ("Judge Wigswo…") beside the long CROSS-EXAMINATION chip (Roboto is wider than SF).
 - Settlement seal glyph is the Material "draw" icon where iOS uses the `signature` SF Symbol.
 - The cold open's first frame can show the status bar for a frame before it hides.
@@ -365,7 +373,7 @@ Still owed:
 | `Shared/WidgetViews/*`, `PleadWidgetPalette.swift`, `PixelJudgeGlyph.swift` | `widgets/SmallWidgetView.kt`, `MediumWidgetView.kt`, `AccessoryRectangularView.kt`, `AccessoryCircularView.kt`, `PleadWidgetContent.kt`, `PleadWidgetComponents.kt`, `PleadWidgetPalette.kt`, `PixelJudgeGlyph.kt` | Same copy, colours, sizes and sprites. Sprites render to bitmaps at whole device pixels per cell (no resampling). Countdown = RemoteViews `Chronometer` ("Plea due in 5:12:03"). Capsules/cards are shape drawables (rounded on API 26+). |
 | DEBUG `WidgetPreviewHarness` (`AWWidgetPreview`, `AWWidgetPreviewType`) | `widgets/WidgetPreviewHarness.kt` (`WidgetPreviewOverlay()`) | Renders the real widget: `GlanceAppWidget.compose` → RemoteViews → inflated. All pages; `tinted` says it has no Android equivalent; `activity` renders the court-session notification view. Glance `@Preview`s in `widgets/PleadWidgetPreviews.kt`. |
 | `AppDelegate` APNs callbacks | `push/PleadMessagingService.kt` (`PleadMessaging`), `push/PushNotifications.kt` | `onNewToken` → `PushService.shared.didReceive`. Data messages: silent → `handleSilentPush`; alert → notification on channel = `category`, tag = `collapse_id` (newer replaces older), `VISIBILITY_PRIVATE` + public "Plead / Court notice" unless "Show case details on Lock Screen", emoji stripped, tap → MainActivity with every field as an extra. Inert without `google-services.json`. |
-| `LiveActivityService` + `PleadCaseLiveActivity` | `push/CourtSessionNotification.kt` (implements `CourtSessionPresenter`), `res/layout/court_session_notification.xml` | Ongoing notification (channel `court_session`, low importance, public) with the banner layout (cream card, burgundy bar, judge, headline, "Case #021", detail, chronometer or gavel) + system chronometer. Planner actions → post / re-post / cancel; plea entered lingers 15 min; stale → `setTimeoutAfter`; user dismissal = finished. Same `liveActivity.startedAt` / `liveActivity.finished` keys; same `live_activity_*` analytics. Without a running app model, `summons` / `verdict_soon` / `verdict_ready` pushes drive it directly (no case number in a push: the "Case #" line is hidden). |
+| `LiveActivityService` + `PleadCaseLiveActivity` | `push/CourtSessionNotification.kt` (implements `CourtSessionPresenter`), `res/layout/court_session_notification.xml` | Ongoing notification (channel `court_session_v2`, default importance but silent, public; was `court_session`, low) with the banner layout (cream card, burgundy bar, judge, headline, "Case #021", detail, chronometer or gavel) + system chronometer. Planner actions → post / re-post / cancel; plea entered lingers 15 min; stale → `setTimeoutAfter`; user dismissal = finished. Same `liveActivity.startedAt` / `liveActivity.finished` keys; same `live_activity_*` analytics. Without a running app model, `summons` / `verdict_soon` / `verdict_ready` pushes drive it directly (no case number in a push: the "Case #" line is hidden). |
 | `requestReview()` after the mock trial (OnboardingContainer) | `push/ReviewPrompt.kt` (`rememberRequestReview()`, `ReviewPrompt.askForRatingOnce`) | Play In-App Review; same `ratingPromptRequested` key, `rating_prompt_requested {after: mock_trial}`, 0.8 s settle, `AWNoReviewPrompt YES` respected. Demo runs use `FakeReviewManager`. |
 | Backend (amendment az) | `supabase/migrations/20260930000100_push_tokens_platform.sql`, `register_push`, `_shared/fcm.ts`, `_shared/push.ts`, `_shared/notify.ts` | `push_tokens.platform` (`apns` default / `fcm`, platform-aware token check); `register_push {platform?}` (FCM tokens kept case-sensitive); `deliver` routes `fcm` rows to FCM HTTP v1 (service-account RS256 JWT → OAuth token, cached), data-only message with the APNs fields, `android.collapse_key`, high priority for alerts; `fcm_unconfigured` without `FCM_SERVICE_ACCOUNT`; dead tokens cleared. Queue flush + silent refresh platform-aware. APNs unchanged. Tests: `_shared/tests/fcm_test.ts` + grep/anonymous additions. |
 
@@ -413,11 +421,20 @@ the 1x1 circular), `widgets2-states`, `live-activity2-banner` (the notification 
 `court-session-shade` / `court-session-shade-expanded` (the real notification from `AWLiveActivity summons`),
 `onb2-widgets` / `onb2-notices` (onboarding with the widgets package's art).
 
+Fixed since (polish/misc):
+- Court-session notification importance (product decision by the integrator; amendment pending in CONTRACTS-v2): the
+  channel was `IMPORTANCE_LOW`, so Android filed the notification under "Silent" without a status-bar icon, while the
+  iOS Live Activity is prominent on the Lock Screen. New channel `court_session_v2` ("Court in session"): default
+  importance, no sound, no vibration, no badge; every post `setSilent(true)` + `setOnlyAlertOnce(true)` (no noise, no
+  heads-up for updates). The old `court_session` channel is deleted the next time the channel is ensured (first
+  post after the upgrade). Same content, visibility, analytics and `liveActivity.*` keys. Screenshots:
+  `court-session-shade` (collapsed, above "Silent"), `court-session-shade-expanded`, `court-session-statusbar`.
+- Onboarding's widget illustration no longer tail-truncates "The Dinner Incid…": `widgets/WidgetFitText` (Compose,
+  measured with the theme style merged in) applies the same `.minimumScaleFactor(0.75)` as the real small widget.
+
 Open (not fixed):
-- The court-session channel is `IMPORTANCE_LOW`, so Android files the notification under "Silent", below alerting
-  notifications. Raising it (default importance + `setSilent`) would put it with the others and on the status bar;
-  a product call, left as 3f built it.
-- Onboarding's widget illustration (Compose, not a real widget) still tail-truncates "The Dinner Incid…" at 16e-like widths.
+- Onboarding widgets step at widths under ~360 dp: the small-widget illustration runs past the right edge (the
+  composition's offsets are fixed; seen with a 900 px wide override, not on any Pixel width).
 
 ## Compose UI tests (ArgueWinUITests port)
 

@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -162,6 +163,7 @@ private fun CaseDetailContent(kase: Case, store: CaseStore, router: AppRouter, o
     val scroll = rememberScrollState()
     val anchors = remember { ScrollAnchors() }
     var viewport by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
 
     val plaintiff = store.name(kase.plaintiffId, fallback = "Plaintiff")
     val defendant = store.name(kase.defendantId, fallback = "Defendant")
@@ -171,7 +173,8 @@ private fun CaseDetailContent(kase: Case, store: CaseStore, router: AppRouter, o
         val anchor = DemoHarness.scroll
         if (anchor != null && anchor in listOf("panel", "judgement", "settlement")) {
             delay(600)
-            anchors.scrollTo(anchor, scroll, viewport, center = false)
+            // Swift `scrollTo(anchor, anchor: .top)`: the card's top at the top of the visible area (under the nav bar).
+            anchors.scrollTo(anchor, scroll, viewport, center = false, contentPaddingTop = with(density) { PleadSpacing.l.roundToPx() })
         }
     }
 
