@@ -62,7 +62,6 @@ import androidx.compose.material.icons.outlined.Casino
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DoNotTouch
-import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -113,6 +112,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.plead.android.app.DemoHarness
+import app.plead.android.features.settlement.SignatureGlyph
 import kotlin.math.PI
 
 // MARK: - SF Symbols
@@ -151,7 +151,7 @@ object SFSymbol {
         "trash" to Icons.Outlined.Delete,
         "trash.circle.fill" to Icons.Filled.DeleteForever,
         "square.and.arrow.up" to Icons.Outlined.IosShare,
-        "signature" to Icons.Outlined.Draw,
+        "signature" to SignatureGlyph.vector, // Plead's own glyph (30x22: draw it with SignatureGlyph(pointSize) for the symbol's box)
         "info.circle" to Icons.Outlined.Info,
         "hands.and.sparkles" to Icons.Outlined.Handshake,
         "hands.and.sparkles.fill" to Icons.Filled.Handshake,

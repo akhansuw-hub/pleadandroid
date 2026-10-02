@@ -13,15 +13,18 @@ integrator (wave 4) keeps the summary current. Brief: [PORT.md](PORT.md).
   judgement, Settings (incl. the onboarding preview), Us, the Glance widgets (small / medium / 1x1 / one-row strip),
   FCM push and the ongoing "court in session" notification (the Live Activity's replacement). `DemoHarness` flags
   drive all of it on the emulator; screenshots in [screenshots/](screenshots/).
-- **Build (final):** `assembleDebug` + `assembleRelease` (unsigned: no release signing config, see "Needs the user")
-  OK; JVM tests 804 run, 0 failures; lint 0 errors (42 warnings, 5 hints); Compose tests on the `visage_phone`
-  emulator (API 35) 51 run, 50 passed, 1 skipped, 0 failures; backend `deno check` clean, `deno test` 279 passed, 0 failed.
+- **Build (final, `polish/all`: court + misc + shell polish integrated):** `assembleDebug` + `assembleRelease` (unsigned:
+  no release signing config, see "Needs the user") OK; JVM tests 835 run, 0 failures; lint 0 errors (44 warnings,
+  5 hints); Compose tests on the `visage_phone` emulator (API 35) 53 run, 52 passed, 1 skipped, 0 failures (first full
+  run, 10 min); backend `deno check` clean, `deno test` 279 passed, 0 failed (unchanged by the polish branches).
 - **Compose UI tests:** every ArgueWinUITests suite is ported: 43 instrumented tests under
   `src/androidTest/.../features/{court,shell,onboarding}/` on one shared support package (see "Compose UI tests"
-  below), next to the 8 earlier smoke tests. Run on the `visage_phone` emulator (Pixel 7, API 35,
-  `connectedDebugAndroidTest`): 51 run, 50 passed, 1 skipped (`testDefenceDueOpensTheDefenceFlow`, an assumption, as
-  on iOS), 0 failed, three full runs in a row (~10 min each).
-- **Owed:** the small visual gaps listed under Wave 4.
+  below), next to the 8 earlier smoke tests and the 2 tab-state tests (`features/shell/TabStateComposeTests`). Run on
+  the `visage_phone` emulator (Pixel 7, API 35, `connectedDebugAndroidTest`): 53 run, 52 passed, 1 skipped
+  (`testDefenceDueOpensTheDefenceFlow`, an assumption, as on iOS), 0 failed (~10 min).
+- **Owed:** the Wave 4 visual gaps are fixed (polish branches, listed under Wave 4); what is still open: the onboarding
+  widget illustration under ~360 dp, the judge name at large text on 360 dp phones (as on iOS), the Liquid Glass pill
+  behind the selected tab, slow debug cold launches on the emulator.
 - **Needs the user:** see the last section.
 
 ## Wave 1: skeleton (done)
@@ -339,7 +342,7 @@ after their iOS counterpart in `docs/screenshots/v2/` where one exists. Many iOS
 (ArgueWin-era Home, old paywall/welcome copy, iOS 26 floating tab bar); the Android screens were checked against the
 current Swift source in those cases.
 
-Remaining gaps (Android vs iOS, all small):
+Remaining gaps (Android vs iOS, all small; the polish branches fixed most of them, marked "Fixed"):
 - Fixed (polish/shell): tab bar over the Court. `app/TabBarStyle.kt`: the paper-white bar on Home/Cases/Us, and over the Court the
   dark bar iOS 26 renders there (background #401B17, items #FFECE8, selected #BC4A46, no hairline; sampled from
   `court-clean-1-17pro.png`), cross-faded with `PleadMotion.fade()` (snaps with Reduce Motion). The Liquid Glass pill
@@ -380,8 +383,8 @@ Fixed since (branch `polish/court`):
   The CLAIM and verdict cards still leave with their beat at once (not bubbles).
 - Settlement seal and "Settle Outside Court" draw Plead's own signature glyph (`features/settlement/SignatureGlyph.kt`,
   an original vector: x mark, looped initial over the signing line) at the SF Symbol's size and weight, in place of the
-  Material "draw" icon (`SignatureGlyphTests`). `SFSymbol.map["signature"]` (designsystem) still names `Draw`; nothing
-  reads it.
+  Material "draw" icon (`SignatureGlyphTests`). `SFSymbol.map["signature"]` (designsystem) names the same
+  vector since the integration (`polish/all`).
 
 Resolved in the final integration (see below): 3f merged, `AppModel.courtSession`, lock-screen visibility,
 `OnboardingWidgetArt.kt` removed, `AWWidgetPreview` / `AWLiveActivity` screens, widget screenshots.
@@ -446,12 +449,12 @@ the 1x1 circular), `widgets2-states`, `live-activity2-banner` (the notification 
 `onb2-widgets` / `onb2-notices` (onboarding with the widgets package's art).
 
 Fixed since (polish/misc):
-- Court-session notification importance (product decision by the integrator; amendment pending in CONTRACTS-v2): the
+- Court-session notification importance (product decision by the integrator; CONTRACTS-v2 amendment ba (2026-10-02)): the
   channel was `IMPORTANCE_LOW`, so Android filed the notification under "Silent" without a status-bar icon, while the
   iOS Live Activity is prominent on the Lock Screen. New channel `court_session_v2` ("Court in session"): default
   importance, no sound, no vibration, no badge; every post `setSilent(true)` + `setOnlyAlertOnce(true)` (no noise, no
-  heads-up for updates). The old `court_session` channel is deleted the next time the channel is ensured (first
-  post after the upgrade). Same content, visibility, analytics and `liveActivity.*` keys. Screenshots:
+  heads-up for updates). The old `court_session` channel is deleted at launch
+  (`PleadApplication.setUpNotificationChannels` from `onCreate`, since `polish/all`), not on the first post. Same content, visibility, analytics and `liveActivity.*` keys. Screenshots:
   `court-session-shade` (collapsed, above "Silent"), `court-session-shade-expanded`, `court-session-statusbar`.
 - Onboarding's widget illustration no longer tail-truncates "The Dinner Incid…": `widgets/WidgetFitText` (Compose,
   measured with the theme style merged in) applies the same `.minimumScaleFactor(0.75)` as the real small widget.

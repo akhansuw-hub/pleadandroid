@@ -20,7 +20,7 @@ class PleadApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        registerNotificationChannels(this)
+        setUpNotificationChannels(this)
         // The medium and 1x1 glance receivers join WidgetCenter.receivers (wave 3f).
         PleadWidgets.install()
     }
@@ -72,6 +72,16 @@ class PleadApplication : Application() {
             PushCategory.reminder -> "Deadline reminders"
             PushCategory.partner -> "Your partner"
             PushCategory.general -> "Court notices"
+        }
+
+        /**
+         * Every channel at launch: the push categories and the court-session channel. Ensuring the court-session channel
+         * here (not only on its first post) deletes the old low-importance `court_session` channel as soon as an upgraded
+         * build starts (CONTRACTS-v2 amendment ba).
+         */
+        fun setUpNotificationChannels(context: Context) {
+            registerNotificationChannels(context)
+            CourtSessionNotification.ensureChannel(context)
         }
 
         /**

@@ -19,6 +19,7 @@ import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -122,7 +123,7 @@ class CourtSessionNotificationTests {
         assertEquals(2, court.sessions().size)
     }
 
-    /** Product decision (amendment pending in CONTRACTS-v2): alerting section and status-bar icon, never a noise. */
+    /** Product decision (CONTRACTS-v2 amendment ba): alerting section and status-bar icon, never a noise. */
     @Test fun channelIsDefaultImportanceButSilent() {
         manager.createNotificationChannel(android.app.NotificationChannel("court_session", "Court in session", NotificationManager.IMPORTANCE_LOW))
         CourtSessionNotification.ensureChannel(context)
@@ -135,6 +136,21 @@ class CourtSessionNotificationTests {
         assertFalse(channel.shouldVibrate())
         assertFalse(channel.canShowBadge())
         assertEquals(Notification.VISIBILITY_PUBLIC, channel.lockscreenVisibility)
+    }
+
+    /** The upgrade path: the launch-time setup (PleadApplication.onCreate) replaces the old channel before any post. */
+    @Test fun launchSetsUpTheCourtSessionChannelAndDeletesTheOldOne() {
+        // Robolectric starts the manifest's PleadApplication, so onCreate has already run: the channel exists.
+        assertTrue(context is app.plead.android.app.PleadApplication)
+        assertEquals(NotificationManager.IMPORTANCE_DEFAULT, manager.getNotificationChannel("court_session_v2").importance)
+        // An upgraded install: only the first build's low-importance channel.
+        manager.deleteNotificationChannel("court_session_v2")
+        manager.createNotificationChannel(android.app.NotificationChannel("court_session", "Court in session", NotificationManager.IMPORTANCE_LOW))
+        app.plead.android.app.PleadApplication.setUpNotificationChannels(context)
+        assertNull(manager.getNotificationChannel("court_session"))
+        assertEquals(NotificationManager.IMPORTANCE_DEFAULT, manager.getNotificationChannel("court_session_v2").importance)
+        assertNotNull(manager.getNotificationChannel("summons")) // the push categories too
+        assertTrue(posted().isEmpty())
     }
 
     @Test fun postsAreSilentAndAlertOnce() {

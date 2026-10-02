@@ -333,7 +333,8 @@ class CourtSessionNotification(
          * status-bar icon (the iOS Live Activity is prominent on the Lock Screen), but without sound or vibration on
          * the channel and `setSilent` / `setOnlyAlertOnce` on every post: it never makes a noise or pops a heads-up
          * (the alert pushes do that). `_v2` because channel settings are immutable once created: the first build's
-         * low-importance channel [legacyChannelIds] is deleted. Amendment pending in CONTRACTS-v2.
+         * low-importance channel [legacyChannelIds] is deleted (at launch, `PleadApplication.setUpNotificationChannels`).
+         * CONTRACTS-v2 amendment ba (2026-10-02).
          */
         const val channelId = "court_session_v2"
         const val channelName = "Court in session"

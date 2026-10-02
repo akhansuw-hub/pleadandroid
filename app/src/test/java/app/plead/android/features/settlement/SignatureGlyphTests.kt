@@ -4,7 +4,9 @@ package app.plead.android.features.settlement
 import androidx.compose.ui.graphics.vector.VectorGroup
 import androidx.compose.ui.graphics.vector.VectorPath
 import androidx.compose.ui.unit.dp
+import app.plead.android.designsystem.SFSymbol
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -27,5 +29,10 @@ class SignatureGlyphTests {
         assertEquals("x mark, signing line, signature", 3, paths.size)
         assertTrue(paths.all { it.stroke != null && it.fill == null && it.strokeLineWidth == SignatureGlyph.strokeWidth })
         assertTrue(v.root !is VectorPath && v.root is VectorGroup)
+    }
+
+    @Test fun sfSymbolSignatureIsTheGlyph() {
+        // The SF Symbol table names the same vector, so any `SFSymbol.icon("signature")` draws Plead's glyph too.
+        assertSame(SignatureGlyph.vector, SFSymbol.icon("signature"))
     }
 }
