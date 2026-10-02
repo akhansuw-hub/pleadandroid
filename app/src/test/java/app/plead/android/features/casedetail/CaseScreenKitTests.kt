@@ -19,6 +19,23 @@ class CaseScreenKitTests {
         assertEquals(0, SheetDetentLayout.visibleHeight(2000, 2200f))
     }
 
+    @Test fun contentFittingPartialDetent() {
+        // Not measured yet: Material's half.
+        assertEquals(1000, SheetDetentLayout.partialHeight(2000, 0, 60))
+        assertEquals(2000, SheetDetentLayout.layoutHeight(2000, 0, 60))
+        // Content shorter than half: the half detent (iOS `.medium`).
+        assertEquals(1000, SheetDetentLayout.partialHeight(2000, 700, 60))
+        assertEquals(2000, SheetDetentLayout.layoutHeight(2000, 700, 60))
+        // Taller than half: content + navigation bar, measured in twice that so Material's half lands there.
+        assertEquals(1460, SheetDetentLayout.partialHeight(2000, 1400, 60))
+        assertEquals(2920, SheetDetentLayout.layoutHeight(2000, 1400, 60))
+        // Taller than the screen: capped at the expanded height (iOS `.large`).
+        assertEquals(2000, SheetDetentLayout.partialHeight(2000, 2400, 60))
+        assertEquals(4000, SheetDetentLayout.layoutHeight(2000, 2400, 60))
+        // Odd heights never measure Material's box shorter than the screen.
+        assertEquals(2001, SheetDetentLayout.layoutHeight(2001, 0, 60))
+    }
+
     @Test fun topAnchorIncludesTheColumnsPadding() {
         // The record column pads 16 dp (48 px at 3x) inside its scroll; anchors are measured inside that padding.
         assertEquals(1248, ScrollAnchors.target(top = 1200, height = 600, viewport = 2000, center = false, contentPaddingTop = 48, maxScroll = 5000))

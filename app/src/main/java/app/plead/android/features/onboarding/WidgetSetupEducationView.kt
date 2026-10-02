@@ -12,6 +12,9 @@
 // describe iOS mechanics changed (see STATUS.md, wave 3b); everything else is verbatim.
 package app.plead.android.features.onboarding
 
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.layout
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -261,6 +264,14 @@ object WidgetEducationPreview {
         get() = (PermissionScreenTokens.phoneWidth - (PermissionScreenTokens.phoneBezel + PleadSpacing.s) * 2) / activityRealWidth
     val widgetRealSize: Dp = 170.dp
 
+    /**
+     * The composition is laid out at its iOS size (320 × 318) and scaled down to the width it is offered when that is
+     * narrower (phones under ~368 dp: 320 dp of hero inside the 24 dp gutters), keeping its proportions. iOS never
+     * needs it (its narrowest phone offers 342 pt); Android's 360 dp and smaller phones do.
+     */
+    fun heroScale(availableWidthPx: Int, heroWidthPx: Int): Float =
+        if (heroWidthPx <= 0 || availableWidthPx >= heroWidthPx) 1f else availableWidthPx.toFloat() / heroWidthPx
+
     const val accessibilityLabel =
         "Preview: a Plead live update on the Lock Screen saying you've been summoned, and a small Plead widget on the Home Screen."
 }
@@ -282,7 +293,7 @@ fun WidgetEducationPreview(modifier: Modifier = Modifier) {
                 },
             contentAlignment = Alignment.TopCenter,
         ) {
-            Box(Modifier.size(T.heroWidth, T.heroHeight)) {
+            Box(Modifier.heroFit(T.heroWidth, T.heroHeight)) {
                 LockScreenMock(now, Modifier.pleadReveal(PleadRevealKind.card, index = 0))
                 val w = WidgetEducationPreview.widgetRealSize * T.homeWidgetScale
                 HomeWidgetMock(
@@ -500,5 +511,21 @@ object OnboardingActivityBanner {
         val m = (s % 3600) / 60
         val sec = s % 60
         return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
+    }
+}
+
+/** Lays the hero out at [width] × [height] and scales it (both axes, about its centre) to fit a narrower width. */
+private fun Modifier.heroFit(width: Dp, height: Dp): Modifier = layout { measurable, constraints ->
+    val w = width.roundToPx()
+    val h = height.roundToPx()
+    val scale = if (constraints.hasBoundedWidth) WidgetEducationPreview.heroScale(constraints.maxWidth, w) else 1f
+    val placeable = measurable.measure(Constraints.fixed(w, h))
+    val outW = (w * scale).roundToInt()
+    val outH = (h * scale).roundToInt()
+    layout(outW, outH) {
+        placeable.placeWithLayer((outW - w) / 2, (outH - h) / 2) {
+            scaleX = scale
+            scaleY = scale
+        }
     }
 }

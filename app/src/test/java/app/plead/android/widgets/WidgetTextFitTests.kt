@@ -48,4 +48,18 @@ class WidgetTextFitTests {
         val width = measurer.measure(title, fitted, softWrap = false, maxLines = 1).size.width
         assertTrue("$width > $narrow", width <= narrow)
     }
+
+    /** Glyph advances are not exactly proportional to the size: the fitted size is verified, never a hair too wide. */
+    @Test fun fittedTitleAlwaysFitsItsWidth() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val measurer = TextMeasurer(createFontFamilyResolver(context), Density(2.625f), androidx.compose.ui.unit.LayoutDirection.Ltr)
+        val style = TextStyle(fontFamily = FontFamily.Serif, fontSize = 15.sp)
+        val title = "The Dinner Incident"
+        val natural = measurer.measure(title, style, softWrap = false, maxLines = 1).size.width
+        for (w in (natural * 0.76f).toInt()..natural) {
+            val fitted = WidgetTextFit.fittedStyle(measurer, title, style, w, 0.75f)
+            val width = measurer.measure(title, fitted, softWrap = false, maxLines = 1).size.width
+            assertTrue("$width > $w at ${fitted.fontSize}", width <= w)
+        }
+    }
 }

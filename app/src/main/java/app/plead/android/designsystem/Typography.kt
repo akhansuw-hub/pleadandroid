@@ -78,6 +78,24 @@ object FrauncesFont {
     fun resource(weight: FontWeight, italic: Boolean): Int = resources.getValue(name(weight, italic))
 }
 
+/**
+ * Letter spacing, made explicit (iOS parity). SwiftUI text has no added tracking unless the Swift applies `.tracking` /
+ * `.kerning`; Material 3's type scale does (0.5 sp on body text, 0.1 sp on labels…), and a Compose `Text` without its
+ * own style inherits it from `LocalTextStyle`. So:
+ * - every style built in this file sets `letterSpacing = 0.sp` ([none]), so it stays untracked even when merged into
+ *   an inherited style;
+ * - [PleadTheme] gives Material a type scale with zero letter spacing (the default `LocalTextStyle` included);
+ * - the only tracked token is listed in [tracked] and mirrors Swift (`pleadLabelCaps()`: `.tracking(capsTracking)`).
+ *   Call sites that track in Swift (`.tracking(x)` / `.kerning(x)`) copy the style with `letterSpacing = x.sp`
+ *   (points → sp 1:1); nothing else adds letter spacing.
+ */
+object PleadTracking {
+    val none = 0.sp
+
+    /** Tracked style tokens and their Swift tracking (pt = sp). Every other token in PleadType / CourtFont is untracked. */
+    val tracked: Map<String, Float> = mapOf("PleadType.labelCapsTracked" to PleadType.capsTracking)
+}
+
 /** Swift `Font.TextStyle` with its default (Large) point size, iOS HIG. */
 enum class TextStyleKind(val defaultSize: Float) {
     largeTitle(34f), title(28f), title2(22f), title3(20f), headline(17f),
@@ -115,9 +133,9 @@ object PleadType {
     fun display(size: Float, weight: FontWeight = FontWeight.Bold, italic: Boolean = false, relativeTo: TextStyleKind): TextStyle {
         val style = if (italic) FontStyle.Italic else FontStyle.Normal
         if (FrauncesFont.isAvailable) {
-            return TextStyle(fontFamily = FrauncesFont.family, fontWeight = weight, fontStyle = style, fontSize = size.sp)
+            return TextStyle(fontFamily = FrauncesFont.family, fontWeight = weight, fontStyle = style, fontSize = size.sp, letterSpacing = PleadTracking.none)
         }
-        return TextStyle(fontFamily = FontFamily.Serif, fontWeight = weight, fontStyle = style, fontSize = size.sp)
+        return TextStyle(fontFamily = FontFamily.Serif, fontWeight = weight, fontStyle = style, fontSize = size.sp, letterSpacing = PleadTracking.none)
     }
 
     /** Verdict winner, major payoff screens. */
@@ -149,6 +167,7 @@ object PleadType {
         fontFamily = FontFamily.Default,
         fontWeight = weight,
         fontSize = TextStyleKind.nearest(size, relativeTo).defaultSize.sp,
+        letterSpacing = PleadTracking.none,
     )
 
     /** Filings, Your Turn, screen sections. */
@@ -179,6 +198,7 @@ object PleadType {
         fontFamily = FontFamily.Default,
         fontWeight = weight,
         fontSize = TextStyleKind.nearest(size, relativeTo).defaultSize.sp,
+        letterSpacing = PleadTracking.none,
     )
 
     /** Charge text, evidence descriptions, partner speech. */
@@ -202,11 +222,11 @@ object PleadType {
 
 /** A rounded (system sans) style at the default size of a text style: SwiftUI `Font.system(style, design: .rounded, weight:)`. */
 private fun rounded(style: TextStyleKind, weight: FontWeight): TextStyle =
-    TextStyle(fontFamily = FontFamily.Default, fontWeight = weight, fontSize = style.defaultSize.sp)
+    TextStyle(fontFamily = FontFamily.Default, fontWeight = weight, fontSize = style.defaultSize.sp, letterSpacing = PleadTracking.none)
 
 /** SwiftUI `Font.system(style)` (SF Pro Text): the default weight of every style but headline is regular. */
 private fun system(style: TextStyleKind, weight: FontWeight = FontWeight.Normal): TextStyle =
-    TextStyle(fontFamily = FontFamily.Default, fontWeight = weight, fontSize = style.defaultSize.sp)
+    TextStyle(fontFamily = FontFamily.Default, fontWeight = weight, fontSize = style.defaultSize.sp, letterSpacing = PleadTracking.none)
 
 /**
  * The courtroom's typography (port of `CourtFont` in CourtStyle.swift): the Plead tokens expressed against text
@@ -219,7 +239,7 @@ object CourtFont {
         if (FrauncesFont.isAvailable) {
             return PleadType.display(size, weight = weight, italic = italic, relativeTo = relativeTo)
         }
-        val f = TextStyle(fontFamily = FontFamily.Serif, fontWeight = weight, fontSize = relativeTo.defaultSize.sp)
+        val f = TextStyle(fontFamily = FontFamily.Serif, fontWeight = weight, fontSize = relativeTo.defaultSize.sp, letterSpacing = PleadTracking.none)
         return if (italic) f.italic() else f
     }
 
@@ -306,7 +326,7 @@ object CourtFont {
         @Composable @ReadOnlyComposable
         get() {
             val fontScale = LocalDensity.current.fontScale
-            return TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold, fontSize = (10f / fontScale).sp)
+            return TextStyle(fontFamily = FontFamily.Default, fontWeight = FontWeight.Bold, fontSize = (10f / fontScale).sp, letterSpacing = PleadTracking.none)
         }
 
     // MARK: Text (SF Pro Text → system sans): partner speech, exhibit bodies, metadata.

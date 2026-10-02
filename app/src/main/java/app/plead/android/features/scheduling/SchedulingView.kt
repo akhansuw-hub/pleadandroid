@@ -65,8 +65,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun SchedulingSheet(model: AppModel, caseId: UUID, onDismiss: () -> Unit) {
     var countering by remember { mutableStateOf(false) }
-    // `.presentationDetents(countering ? [.large] : [.medium, .large])`.
-    CaseSheetHost(onDismissRequest = onDismiss, partial = true, expand = countering) {
+    // `.presentationDetents(countering ? [.large] : [.medium, .large])`. The partial detent fits the content (the
+    // whole sheet, down to "If you don't respond in … this time stands.", shows before any drag), as the iOS medium
+    // detent shows it in the iOS capture; with today's three-line explainer the content is taller than half a phone.
+    CaseSheetHost(onDismissRequest = onDismiss, partial = true, expand = countering, fitsContent = true) {
         SchedulingView(caseId, model.store, countering, { countering = it }, onDismiss)
     }
 }

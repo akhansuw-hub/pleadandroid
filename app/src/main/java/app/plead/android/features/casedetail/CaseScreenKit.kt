@@ -64,6 +64,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -203,6 +204,10 @@ fun InteractiveDismissDisabled(blocked: Boolean) {
  * A root-level sheet (Swift `.sheet`): full height by default, [partial] for `.presentationDetents([.medium, .large])`.
  * While the content reports [InteractiveDismissDisabled] the swipe / back / scrim dismissal is refused; the
  * content's own Cancel still calls [onDismissRequest].
+ *
+ * [fitsContent] (with [partial]): the partial detent is as tall as the content (at least half the screen, at most
+ * the expanded height) instead of a fixed half, so the whole content shows in the partial state. Swift
+ * `.presentationDetents([.height(contentHeight), .large])`; see [SheetDetentLayout].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -212,6 +217,7 @@ fun CaseSheetHost(
     partial: Boolean = false,
     expand: Boolean = false,
     containerColor: Color = PleadColor.background,
+    fitsContent: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val guard = remember { SheetDismissGuard() }
@@ -219,6 +225,8 @@ fun CaseSheetHost(
         skipPartiallyExpanded = !partial,
         confirmValueChange = { it != SheetValue.Hidden || !guard.blocked },
     )
+    val geometry = remember { SheetDetentGeometry() }
+    val fits = partial && fitsContent
     // `.presentationDetents(countering ? [.large] : [.medium, .large])`.
     LaunchedEffect(expand) { if (expand && partial) state.expand() }
     val dismiss by rememberUpdatedState(onDismissRequest)
@@ -228,7 +236,8 @@ fun CaseSheetHost(
         containerColor = containerColor,
         dragHandle = null,
         shape = RoundedCornerShape(topStart = PleadRadius.card, topEnd = PleadRadius.card),
-        modifier = modifier.statusBarsPadding(),
+        // The detent shift sits before Material's anchors in the chain, so they are computed from its height.
+        modifier = modifier.statusBarsPadding().then(if (fits) Modifier.sheetDetentShift(geometry) else Modifier),
     ) {
         CompositionLocalProvider(LocalSheetDismissGuard provides guard) {
             // iOS lays a detent sheet out at the detent's height, so its ScrollView ends (padding + home indicator)
@@ -237,11 +246,24 @@ fun CaseSheetHost(
             // sheets are full height (iOS `.large`) and lay the content out in the part that is on screen.
             if (partial) {
                 Column(
-                    Modifier.fillMaxHeight().layout { measurable, constraints ->
-                        val offset = runCatching { state.requireOffset() }.getOrNull()
-                        val visible = SheetDetentLayout.visibleHeight(constraints.maxHeight, offset)
+                    Modifier.layout { measurable, constraints ->
+                        // The sheet's content box: the expanded height minus the navigation bar. With the detent
+                        // shift the box Material gives us is taller by `shift.extra` (see sheetDetentShift).
+                        val extra = if (fits) geometry.extra else 0
+                        val height = (constraints.maxHeight - extra).coerceAtLeast(0)
+                        if (fits) {
+                            geometry.bottomInset = (geometry.layoutHeight - constraints.maxHeight).coerceAtLeast(0)
+                            // The content's natural height. Not while expanding (a counter-proposal's date picker
+                            // has no intrinsic size); the detent keeps the height it had.
+                            if (!expand) {
+                                val natural = runCatching { measurable.maxIntrinsicHeight(constraints.maxWidth) }.getOrNull()
+                                if (natural != null && natural > 0) geometry.contentHeight = natural
+                            }
+                        }
+                        val offset = runCatching { state.requireOffset() }.getOrNull()?.let { it - extra }
+                        val visible = SheetDetentLayout.visibleHeight(height, offset)
                         val placeable = measurable.measure(constraints.copy(minHeight = visible, maxHeight = visible))
-                        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
+                        layout(constraints.maxWidth, height) { placeable.place(0, 0) }
                     },
                 ) { Column(Modifier.fillMaxHeight()) { content() } }
             } else {
@@ -249,6 +271,40 @@ fun CaseSheetHost(
             }
         }
     }
+}
+
+/** What a content-fitting partial sheet measured (px): read and written during layout. */
+@Stable
+internal class SheetDetentGeometry {
+    /** The content's natural height (0 until measured). */
+    var contentHeight by mutableIntStateOf(0)
+
+    /** The navigation-bar inset Material pads the sheet's content with. */
+    var bottomInset by mutableIntStateOf(0)
+
+    /** The height Material's anchors are computed from ([SheetDetentLayout.layoutHeight]). */
+    var layoutHeight by mutableIntStateOf(0)
+
+    /** The sheet's expanded height (the window below the status bar). */
+    var fullHeight by mutableIntStateOf(0)
+
+    /** How much taller than [fullHeight] Material's box is. */
+    val extra: Int get() = (layoutHeight - fullHeight).coerceAtLeast(0)
+}
+
+/**
+ * Material's `ModalBottomSheet` puts its partial anchor at half of the height it is measured in. To put the partial
+ * detent at [SheetDetentLayout.partialHeight] instead, the sheet is measured in a box twice that height and moved up
+ * by the difference, so the expanded anchor still has the sheet's top at the top of the screen and hidden is still
+ * just below the screen's bottom edge.
+ */
+private fun Modifier.sheetDetentShift(geometry: SheetDetentGeometry): Modifier = layout { measurable, constraints ->
+    val full = constraints.maxHeight
+    if (geometry.fullHeight != full) geometry.fullHeight = full
+    val layoutHeight = SheetDetentLayout.layoutHeight(full, geometry.contentHeight, geometry.bottomInset)
+    if (geometry.layoutHeight != layoutHeight) geometry.layoutHeight = layoutHeight
+    val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = layoutHeight))
+    layout(placeable.width, full) { placeable.place(0, full - layoutHeight) }
 }
 
 /** How a partial [CaseSheetHost] fits its content to the detent (Swift: the sheet is laid out at the detent height). */
@@ -262,6 +318,21 @@ object SheetDetentLayout {
         if (offset == null || offset.isNaN()) return maxHeight
         return (maxHeight - offset.roundToInt()).coerceIn(0, maxHeight)
     }
+
+    /**
+     * The partial detent of a content-fitting sheet, as the sheet height on screen: the content's natural height plus
+     * the navigation-bar inset below it, at least half of [fullHeight] (iOS `.medium`) and at most [fullHeight]
+     * (`.large`). Half while the content is not measured yet.
+     */
+    fun partialHeight(fullHeight: Int, contentHeight: Int, bottomInset: Int): Int {
+        val half = fullHeight / 2
+        if (contentHeight <= 0) return half
+        return (contentHeight + bottomInset).coerceIn(half, fullHeight)
+    }
+
+    /** The height Material's sheet is measured in so its partial anchor (half of it) is [partialHeight]. */
+    fun layoutHeight(fullHeight: Int, contentHeight: Int, bottomInset: Int): Int =
+        maxOf(fullHeight, 2 * partialHeight(fullHeight, contentHeight, bottomInset))
 }
 
 // MARK: - Segmented picker

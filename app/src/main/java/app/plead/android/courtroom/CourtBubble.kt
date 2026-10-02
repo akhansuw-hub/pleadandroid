@@ -26,6 +26,11 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
+import kotlin.math.roundToInt
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -345,17 +350,80 @@ private fun JudgeBubble(p: BubbleParams) {
  * the full name shows beside CROSS-EXAMINATION. Compose's `weight` would split the leftover between the name and a
  * weighted Spacer, halving the name's room ("Judge Wigswo…"): here the name alone is weighted and fills, the
  * Spacer is its fixed 4 pt minimum, and the chip is measured first at its natural width (never clipped).
+ *
+ * Narrow phones at large text (Android-only, a user decision; iOS truncates the name there): when the row cannot
+ * hold the whole name beside the chip, the name and the chip text shrink together (SwiftUI `.minimumScaleFactor`)
+ * down to [CourtJudgeHeaderFit.minimumScaleFactor]; if that is still too wide the chip moves to a second row under
+ * the name, at full size. Where the row fits (every Pixel width at the bubble's text cap) nothing changes.
  */
 @Composable
 internal fun CourtJudgeHeader(name: String, ruling: ObjectionRuling?, chip: String?, modifier: Modifier = Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        ScalesGlyph(size = 13.dp)
-        Text(
-            name, style = CourtFont.judgeName, color = CourtColor.creamSoft, maxLines = 1, softWrap = false,
-            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).testTag(CourtJudgeHeaderTags.name),
-        )
+    val density = LocalDensity.current
+    SubcomposeLayout(modifier) { constraints ->
+        fun row(key: String, layout: CourtJudgeHeaderFit.Layout, probe: Boolean, c: Constraints) =
+            subcompose(key) {
+                // Font sizes (sp) shrink by the layout's scale; paddings and the glyph (dp) do not.
+                CompositionLocalProvider(LocalDensity provides Density(density.density, density.fontScale * layout.scale)) {
+                    JudgeHeaderContent(name, ruling, chip, wrap = layout.wrap, probe = probe)
+                }
+            }.map { it.measure(c) }
+
+        val natural = Constraints(maxHeight = constraints.maxHeight)
+        val layout = if (!constraints.hasBoundedWidth || (ruling == null && chip == null)) {
+            CourtJudgeHeaderFit.Layout.normal
+        } else {
+            CourtJudgeHeaderFit.choose(constraints.maxWidth) { scale ->
+                row("probe$scale", CourtJudgeHeaderFit.Layout(scale, wrap = false), probe = true, natural).maxOf { it.width }
+            }
+        }
+        val placeables = row("header", layout, probe = false, constraints.copy(minHeight = 0))
+        val w = (placeables.maxOfOrNull { it.width } ?: 0).coerceIn(constraints.minWidth, constraints.maxWidth)
+        val h = (placeables.maxOfOrNull { it.height } ?: 0).coerceIn(constraints.minHeight, constraints.maxHeight)
+        layout(w, h) { placeables.forEach { it.place(0, 0) } }
+    }
+}
+
+/** How [CourtJudgeHeader] fits a narrow row (pure, tested). */
+internal object CourtJudgeHeaderFit {
+    /** The name and the chip never shrink below this share of their size (then the header wraps). */
+    const val minimumScaleFactor = 0.8f
+
+    data class Layout(val scale: Float, val wrap: Boolean) {
+        companion object {
+            val normal = Layout(1f, wrap = false)
+        }
+    }
+
+    /**
+     * The largest font scale (1, then down in 0.025 steps to [minimumScaleFactor]) at which the one-row header's
+     * natural width ([naturalWidth], px, measured with the name unweighted) fits [maxWidth]; two rows at full size
+     * when none does.
+     */
+    fun choose(maxWidth: Int, naturalWidth: (Float) -> Int): Layout {
+        if (naturalWidth(1f) <= maxWidth) return Layout.normal
+        var scale = 1f
+        while (scale > minimumScaleFactor + 0.0001f) {
+            scale = maxOf(minimumScaleFactor, ((scale - 0.025f) * 1000f).roundToInt() / 1000f)
+            if (naturalWidth(scale) <= maxWidth) return Layout(scale, wrap = false)
+        }
+        return Layout(1f, wrap = true)
+    }
+}
+
+@Composable
+private fun JudgeHeaderContent(name: String, ruling: ObjectionRuling?, chip: String?, wrap: Boolean, probe: Boolean) {
+    // Probes are measured, never placed: no tags or semantics of their own.
+    fun Modifier.tag(t: String) = if (probe) clearAndSetSemantics { } else testTag(t)
+
+    @Composable
+    fun nameText(modifier: Modifier) = Text(
+        name, style = CourtFont.judgeName, color = CourtColor.creamSoft, maxLines = 1, softWrap = false,
+        overflow = TextOverflow.Ellipsis, modifier = modifier.tag(CourtJudgeHeaderTags.name),
+    )
+
+    @Composable
+    fun chipView() {
         if (ruling != null) {
-            Spacer(Modifier.width(4.dp))
             Text(
                 ruling.rawValue.uppercase(),
                 style = CourtFont.legal.copy(letterSpacing = PleadType.capsTracking.sp),
@@ -363,13 +431,32 @@ internal fun CourtJudgeHeader(name: String, ruling: ObjectionRuling?, chip: Stri
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier
-                    .testTag(CourtJudgeHeaderTags.chip)
+                    .tag(CourtJudgeHeaderTags.chip)
                     .border(1.5.dp, PleadColor.cream.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
                     .padding(horizontal = 6.dp, vertical = 2.dp),
             )
         } else if (chip != null) {
-            Spacer(Modifier.width(4.dp))
-            CourtPhaseChip(title = chip, tint = CourtColor.creamSoft, modifier = Modifier.testTag(CourtJudgeHeaderTags.chip))
+            CourtPhaseChip(title = chip, tint = CourtColor.creamSoft, modifier = Modifier.tag(CourtJudgeHeaderTags.chip))
+        }
+    }
+
+    if (wrap) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                ScalesGlyph(size = 13.dp)
+                nameText(Modifier.weight(1f))
+            }
+            chipView()
+        }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            ScalesGlyph(size = 13.dp)
+            // A probe measures the name at its natural width; the header gives it every point the chip leaves.
+            nameText(if (probe) Modifier else Modifier.weight(1f))
+            if (ruling != null || chip != null) {
+                Spacer(Modifier.width(4.dp))
+                chipView()
+            }
         }
     }
 }

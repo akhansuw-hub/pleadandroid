@@ -13,6 +13,8 @@ integrator (wave 4) keeps the summary current. Brief: [PORT.md](PORT.md).
   judgement, Settings (incl. the onboarding preview), Us, the Glance widgets (small / medium / 1x1 / one-row strip),
   FCM push and the ongoing "court in session" notification (the Live Activity's replacement). `DemoHarness` flags
   drive all of it on the emulator; screenshots in [screenshots/](screenshots/).
+- **Build (`polish2/type`):** `assembleDebug` + `assembleRelease` OK; JVM tests 848 run, 0 failures; lint 0 errors
+  (44 warnings, 5 hints); Compose tests on `visage_phone` 53 run, 52 passed, 1 skipped, 0 failures (10 min).
 - **Build (final, `polish/all`: court + misc + shell polish integrated):** `assembleDebug` + `assembleRelease` (unsigned:
   no release signing config, see "Needs the user") OK; JVM tests 835 run, 0 failures; lint 0 errors (44 warnings,
   5 hints); Compose tests on the `visage_phone` emulator (API 35) 53 run, 52 passed, 1 skipped, 0 failures (first full
@@ -22,9 +24,10 @@ integrator (wave 4) keeps the summary current. Brief: [PORT.md](PORT.md).
   below), next to the 8 earlier smoke tests and the 2 tab-state tests (`features/shell/TabStateComposeTests`). Run on
   the `visage_phone` emulator (Pixel 7, API 35, `connectedDebugAndroidTest`): 53 run, 52 passed, 1 skipped
   (`testDefenceDueOpensTheDefenceFlow`, an assumption, as on iOS), 0 failed (~10 min).
-- **Owed:** the Wave 4 visual gaps are fixed (polish branches, listed under Wave 4); what is still open: the onboarding
-  widget illustration under ~360 dp, the judge name at large text on 360 dp phones (as on iOS), the Liquid Glass pill
-  behind the selected tab, slow debug cold launches on the emulator.
+- **Owed:** the Wave 4 visual gaps are fixed (polish branches, listed under Wave 4; `polish2/type` fixed letter
+  spacing, the scheduling sheet's partial detent, the judge name on 360 dp phones and the onboarding widget
+  illustration under ~368 dp); what is still open: the Liquid Glass pill behind the selected tab, slow debug cold
+  launches on the emulator.
 - **Needs the user:** see the last section.
 
 ## Wave 1: skeleton (done)
@@ -358,9 +361,9 @@ Remaining gaps (Android vs iOS, all small; the polish branches fixed most of the
   of the content (its last line, the xl padding and the navigation-bar inset) sat below the screen edge. Partial
   `CaseSheetHost` sheets are now full height in the expanded state (iOS `.large`) and lay the content out in the part
   that is on screen (`SheetDetentLayout.visibleHeight`), as iOS lays a detent sheet out at the detent height: the
-  scroll ends with xl padding + the navigation-bar inset in both states. Roboto's taller lines make the content
-  taller than the half detent, so there the last line scrolls (drag up expands first, as iOS) rather than sitting at
-  the edge. Same for the exhibit detail sheet (also `[.medium, .large]`).
+  scroll ends with xl padding + the navigation-bar inset in both states. The content was still
+  taller than the half detent, so the last line scrolled; fixed on `polish2/type` (below: the scheduling sheet's
+  partial detent now fits its content). The exhibit detail sheet (also `[.medium, .large]`) keeps the half detent.
 - Fixed (polish/shell): cold open status bar. `features/coldopen/ColdOpenSystemBars.kt` (from `MainActivity.onCreate`) requests the
   hide before the window is added and, while the cold open plays, finishes the system's status-bar hide animation at
   once (the splash window controls the bar until it exits; the hide used to fade over the first cold-open frames).
@@ -375,7 +378,7 @@ Fixed since (branch `polish/court`):
   Spacer split the room the chip left, so the name got half of it. `CourtJudgeHeader` (courtroom/CourtBubble.kt) lays it
   out as Swift's `Text.lineLimit(1) · Spacer(minLength: 4) · chip.fixedSize()`: the name alone fills, the chip keeps its
   natural width. `CourtJudgeHeaderTests` (Pixel 7 at ×1, ×1.3 up to the bubble's xxLarge cap; 360 dp at ×1; ruling box).
-  On a 360 dp phone at large text the name still truncates, as `lineLimit(1)` does on iOS when the row is too narrow.
+  On a 360 dp phone at large text the name still truncated (as `lineLimit(1)` does on iOS): fixed on `polish2/type`.
 - Mock trial: a line bubble that leaves its slot fades out where it stood (Swift
   `.transition(.asymmetric(insertion: .identity, removal: .opacity))` under the stage's 0.22 s ease-out, 0.15 s under
   Reduce Motion) instead of vanishing: `mocktrial/MockTrialBubbleExit.kt` keeps a copy of each departed bubble at its
@@ -385,6 +388,49 @@ Fixed since (branch `polish/court`):
   an original vector: x mark, looped initial over the signing line) at the SF Symbol's size and weight, in place of the
   Material "draw" icon (`SignatureGlyphTests`). `SFSymbol.map["signature"]` (designsystem) names the same
   vector since the integration (`polish/all`).
+
+Fixed since (branch `polish2/type`):
+- **Letter spacing (app-wide rule).** iOS text has no tracking unless the Swift applies `.tracking` / `.kerning`.
+  Material 3's type scale tracks text (bodyLarge 0.5 sp, labelLarge 0.1 sp, bodyMedium 0.25 sp…) and a Compose `Text`
+  with no style of its own, a Material `TextButton` / dialog / menu label, and `WidgetFitText` (which merged
+  `LocalTextStyle` into its style) picked it up. Text with an explicit Plead style never did (an explicit style
+  replaces `LocalTextStyle`): measured identical before and after (`LetterSpacingTests.styledTextIsTheSameUnderEitherTheme`).
+  Now `PleadTheme` gives Material a type scale with zero letter spacing (`PleadThemeTypography`, the default
+  `LocalTextStyle` included; sizes / weights / line heights unchanged), every `PleadType` / `CourtFont` builder sets
+  `letterSpacing = 0.sp` explicitly, and `PleadTracking.tracked` lists the only tracked token
+  (`PleadType.labelCapsTracked`, Swift `pleadLabelCaps()`, 1.2). Every `.tracking(` / `.kerning(` in the Swift (≈100
+  sites) was checked against its Android counterpart: all already carry the Swift value (pt → sp 1:1). An unstyled
+  38-character line at 411 dp / xxhdpi: 917 px → 861 px; the same line in a `TextButton`: 778 px → 766 px.
+  `designsystem/LetterSpacingTests`. Glance widgets and the RemoteViews notification are unaffected (no Material text).
+- **WidgetFitText** (onboarding widget illustration's "The Dinner Incident"): without the merged tracking it measured
+  narrower, and `fittedStyle`'s proportional shrink (14.5 sp) still came out 1 % too wide on the device (glyph
+  advances are not linear in the size), so the title ellipsized. `fittedStyle` now verifies its result and steps down
+  a quarter sp until the text really fits (`WidgetTextFitTests.fittedTitleAlwaysFitsItsWidth`). The Glance widget's
+  `scaledSize` path (RemoteViews, Paint-measured) is unchanged.
+- **Scheduling sheet partial detent fits its content.** With the current three-line explainer the content is taller
+  than half the screen on every phone (Pixel 7: the "If you don't respond in … this time stands." line sat below the
+  fold; 360 × 640 dp: the buttons too). `CaseSheetHost(fitsContent = true)` (used by `SchedulingSheet`) makes the
+  partial detent the content's natural height plus the navigation bar, at least half (iOS `.medium`) and at most the
+  expanded height (`.large`), the Swift `.presentationDetents([.height(content), .large])`. Material's
+  `ModalBottomSheet` always anchors its partial state at half the height it is measured in, so the sheet is measured
+  in a box twice the detent height and moved up by the difference (`sheetDetentShift`; expanded and hidden anchors are
+  unchanged, drag up still expands, counter-proposing still expands). Paddings and font sizes already matched the
+  Swift (nav bar 44, xl padding, AWFont sizes; Roboto's natural line height ≈ SF's). The exhibit detail sheet keeps
+  the half detent (its Swift `[.medium, .large]`). `CaseScreenKitTests.contentFittingPartialDetent`;
+  `screenshots/scheduling.png`, `scheduling-360.png`.
+- **Judge nameplate on narrow phones** (user decision; iOS truncates there). `CourtJudgeHeader` measures the one-row
+  header at its natural width; when the name would not fit beside the chip, the name and the chip text shrink
+  together (font scale, `minimumScaleFactor`-style, 0.025 steps, floor 0.8); below the floor the chip moves under the
+  name at full size. At 360 dp: ×1 unchanged; ×1.15 and the bubble's xxLarge cap (×1.3 and above) render at ≈0.97 /
+  0.91 on one row. Pixel 7 is unchanged at every scale. `CourtJudgeHeaderTests` (1, 1.15, 1.3, 2.0 at 411 and 360 dp,
+  phase chip and ruling box, plus the fit rule); `screenshots/court-judge-large-360.png`.
+- **Onboarding widget illustration** (`WidgetEducationPreview`): laid out at its iOS size (320 × 318) and scaled with
+  its proportions to the width offered when narrower (`heroFit`), so nothing runs past the edge from 320 dp up (it
+  used to be clamped to the column width with the widget offset fixed, so on 343 dp it ran 1 dp past the screen, more
+  while floating in). Pixel 7 and the iOS 16e width are unscaled. `WidgetEducationPreviewFitTests`;
+  `screenshots/onb2-widgets-360.png`, `onb2-widgets-320.png`.
+- Still differs from iOS: tracking in sp grows with the system font scale (iOS tracking is in points and does not
+  follow Dynamic Type); Material components' own sizes and line heights (dialog titles, date pickers) are Material's.
 
 Resolved in the final integration (see below): 3f merged, `AppModel.courtSession`, lock-screen visibility,
 `OnboardingWidgetArt.kt` removed, `AWWidgetPreview` / `AWLiveActivity` screens, widget screenshots.
@@ -459,9 +505,7 @@ Fixed since (polish/misc):
 - Onboarding's widget illustration no longer tail-truncates "The Dinner Incid…": `widgets/WidgetFitText` (Compose,
   measured with the theme style merged in) applies the same `.minimumScaleFactor(0.75)` as the real small widget.
 
-Open (not fixed):
-- Onboarding widgets step at widths under ~360 dp: the small-widget illustration runs past the right edge (the
-  composition's offsets are fixed; seen with a 900 px wide override, not on any Pixel width).
+Open (not fixed): none (the onboarding widget illustration under ~368 dp is fixed on `polish2/type`, below).
 
 ## Compose UI tests (ArgueWinUITests port)
 

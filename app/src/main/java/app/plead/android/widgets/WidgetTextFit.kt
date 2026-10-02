@@ -49,8 +49,14 @@ object WidgetTextFit {
         val size = style.fontSize
         if (!size.isSp || maxWidthPx <= 0 || text.isEmpty()) return style
         val measured = measurer.measure(text, style, softWrap = false, maxLines = 1).size.width.toFloat()
-        val fitted = scaledSize(size.value, measured, maxWidthPx.toFloat(), minScale)
-        return if (fitted == size.value) style else style.copy(fontSize = fitted.sp)
+        var fitted = scaledSize(size.value, measured, maxWidthPx.toFloat(), minScale)
+        if (fitted == size.value) return style
+        // Glyph advances do not scale exactly with the size (hinting): step down a quarter sp until it really fits.
+        val floor = size.value * minScale
+        while (fitted - 0.25f >= floor - 0.0001f &&
+            measurer.measure(text, style.copy(fontSize = fitted.sp), softWrap = false, maxLines = 1).size.width > maxWidthPx
+        ) fitted -= 0.25f
+        return style.copy(fontSize = fitted.sp)
     }
 
     /**
@@ -95,8 +101,9 @@ fun WidgetFitText(
     androidx.compose.foundation.layout.BoxWithConstraints(modifier, contentAlignment = androidx.compose.ui.Alignment.Center) {
         val measurer = androidx.compose.ui.text.rememberTextMeasurer()
         val maxWidth = constraints.maxWidth
-        // Measure what `Text` will draw: the theme's text style (letter spacing, line height…) merged with [style].
-        val merged = androidx.compose.material3.LocalTextStyle.current.merge(style)
+        // Measure what `Text(style = …)` draws: [style] itself. An explicit style replaces `LocalTextStyle` (it is not
+        // merged with it), so the theme's line height must not be folded in here either.
+        val merged = style
         val fitted = androidx.compose.runtime.remember(text, merged, maxWidth) {
             if (constraints.hasBoundedWidth) WidgetTextFit.fittedStyle(measurer, text, merged, maxWidth, minScale) else merged
         }
