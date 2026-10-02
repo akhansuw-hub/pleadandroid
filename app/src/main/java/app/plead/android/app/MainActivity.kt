@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import androidx.core.graphics.toColorInt
 import app.plead.android.designsystem.PleadTheme
+import app.plead.android.features.coldopen.ColdOpenSystemBars
 import app.plead.android.services.PushService
 import app.plead.android.widgets.WidgetPreviewOverlay
 import java.lang.ref.WeakReference
@@ -45,6 +46,10 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         model = (application as PleadApplication).appModel()
+        // The cold open was decided with the model (PleadApplication, iOS "before the first frame"): hide the status
+        // bar now, before the window's first draw, rather than from RootScreen's SideEffect after it. RootScreen keeps
+        // owning it from here on and shows it again when the cold open ends.
+        if (model.coldOpen.isPlaying) ColdOpenSystemBars.hideBeforeFirstFrame(window) { model.coldOpen.isPlaying }
         installActivitySeams()
         if (!modelStarted) {
             modelStarted = true

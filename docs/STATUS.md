@@ -340,9 +340,14 @@ after their iOS counterpart in `docs/screenshots/v2/` where one exists. Many iOS
 current Swift source in those cases.
 
 Remaining gaps (Android vs iOS, all small):
-- Tab bar: Android draws the configured paper-white bar (`AppDelegate.styleNavigationBars`) on every tab; iOS 26's
-  Liquid Glass renders it dark over the Court.
-- Tab stacks are recreated on tab switch (scroll position of Home/Cases/Us is not kept as `TabView` does).
+- Fixed (polish/shell): tab bar over the Court. `app/TabBarStyle.kt`: the paper-white bar on Home/Cases/Us, and over the Court the
+  dark bar iOS 26 renders there (background #401B17, items #FFECE8, selected #BC4A46, no hairline; sampled from
+  `court-clean-1-17pro.png`), cross-faded with `PleadMotion.fade()` (snaps with Reduce Motion). The Liquid Glass pill
+  behind the selected item is not drawn on either bar. `docs/screenshots/tabbar-court.png`, `tabbar-home.png`.
+- Fixed (polish/shell): tab state retention. `MainTabScreen` keeps each tab's saveable state in a `SaveableStateHolder` (scroll
+  positions, the tab's NavController and its records' state, Us's avatar editor); `TabNavHost` adopts a restored stack
+  instead of rebuilding it. Only the selected tab stays composed, so the Court's motion stops when it is left (iOS
+  `CourtroomScene.onDisappear`). `features/shell/TabStateComposeTests`, `docs/screenshots/tabs-home-scroll-kept.png`.
 - Fixed (polish/misc): `AWScroll judgement|panel` landed the anchor 16 dp low (the record column's padding sits
   inside its scroll, the anchor frames inside that padding); `ScrollAnchors.scrollTo(contentPaddingTop:)` now puts the
   card right under the nav bar as `scrollTo(anchor: .top)` does.
@@ -353,7 +358,13 @@ Remaining gaps (Android vs iOS, all small):
   scroll ends with xl padding + the navigation-bar inset in both states. Roboto's taller lines make the content
   taller than the half detent, so there the last line scrolls (drag up expands first, as iOS) rather than sitting at
   the edge. Same for the exhibit detail sheet (also `[.medium, .large]`).
-- The cold open's first frame can show the status bar for a frame before it hides.
+- Fixed (polish/shell): cold open status bar. `features/coldopen/ColdOpenSystemBars.kt` (from `MainActivity.onCreate`) requests the
+  hide before the window is added and, while the cold open plays, finishes the system's status-bar hide animation at
+  once (the splash window controls the bar until it exits; the hide used to fade over the first cold-open frames).
+  The bar now leaves while the system splash is still up; RootScreen shows it again when the cold open ends, as before.
+  `docs/screenshots/coldopen-first-frames.png` (splash, splash without bar, first app frame, first scene).
+- Judge nameplate truncation, the settlement seal's Material glyph and the mock trial's vanishing bubbles: fixed on
+  `polish/court`, see "Fixed since (branch `polish/court`)" below.
 - Cold launches on the emulator are slow (debug build, unoptimised dex): run `adb shell cmd package compile -m speed -f app.plead.android` after installing for captures.
 
 Fixed since (branch `polish/court`):
