@@ -27,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -276,6 +277,7 @@ private fun ResponseActions(
                 icon = Icons.Filled.Verified,   // checkmark.seal.fill
                 isLoading = working == SettlementResponseModel.Working.accept,
                 enabled = working == null || working == SettlementResponseModel.Working.accept,
+                modifier = Modifier.testTag("settlement.accept"),
                 onClick = onAccept,
             )
             if (response.canCounter) {

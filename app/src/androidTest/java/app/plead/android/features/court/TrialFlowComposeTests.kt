@@ -62,8 +62,8 @@ class TrialFlowComposeTests : PleadComposeTestCase() {
         if (chooseButton != null) {
             // 3a · I'm the chooser: pick an outcome and DELIVER JUDGEMENT.
             chooseButton.performClick()
-            tap(judgementOption, "first judgement option", timeoutMs = 15_000)
-            tap(beginningWith("DELIVER "), "judgement.deliver")
+            tap(tag("judgement.option"), "first judgement option", timeoutMs = 15_000)
+            tap(tag("judgement.deliver"), "judgement.deliver")
         } else {
             // 3b · Alex won (or a tie): the simulated partner / the court delivers. Leave the sequence.
             tap(backToDocket, "Back to docket")
@@ -143,16 +143,4 @@ class TrialFlowComposeTests : PleadComposeTestCase() {
 
     /** A node inside the verdict sequence's full-screen dialog (iOS: the cover is the hittable layer). */
     private fun inVerdict(matcher: SemanticsMatcher): SemanticsMatcher = matcher and hasClickAction() and hasAnyAncestor(isDialog())
-
-    /**
-     * iOS `judgement.option`: one of JudgementSelectionView's radio cards. They speak their option as one content
-     * description with a selected state and a click action (no tag on Android), which nothing else on screen has
-     * (the tab bar items are selectable but speak no content description).
-     */
-    private val judgementOption: SemanticsMatcher = SemanticsMatcher("judgement option card") { node ->
-        node.config.contains(SemanticsProperties.Selected) &&
-            node.config.contains(androidx.compose.ui.semantics.SemanticsActions.OnClick) &&
-            !node.config.getOrNull(SemanticsProperties.ContentDescription).isNullOrEmpty() &&
-            node.config.getOrNull(SemanticsProperties.Role) != androidx.compose.ui.semantics.Role.Tab
-    }
 }

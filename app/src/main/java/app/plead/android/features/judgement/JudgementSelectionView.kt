@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -120,7 +121,9 @@ fun JudgementSelectionView(caseId: UUID, model: AppModel, onDismiss: () -> Unit,
                         icon = Icons.Filled.Verified,   // checkmark.seal.fill
                         isLoading = selection.isDelivering,
                         enabled = selection.canDeliver || selection.isDelivering,
-                        modifier = Modifier.semantics { if (selection.selectedOption == null) stateDescription = "Choose an option first" },
+                        modifier = Modifier
+                            .testTag("judgement.deliver")
+                            .semantics { if (selection.selectedOption == null) stateDescription = "Choose an option first" },
                     ) {
                         scope.launch { if (selection.deliver()) delivered() }
                     }
@@ -279,6 +282,7 @@ fun JudgementOptionCard(
     Row(
         modifier
             .fillMaxWidth()
+            .testTag("judgement.option")   // before clearAndSetSemantics, which would wipe it
             .clearAndSetSemantics {
                 contentDescription = label + if (option.generic == true) ". A general suggestion" else ""
                 selected = isSelected

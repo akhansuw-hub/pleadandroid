@@ -47,6 +47,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -140,7 +141,9 @@ fun SettlementRoomView(
                         room.ctaTitle,
                         isLoading = room.isSending,
                         enabled = room.canSend || room.isSending,
-                        modifier = Modifier.semantics { if (room.choice == null) stateDescription = "Choose terms first" },
+                        modifier = Modifier
+                            .testTag("settlement.propose")
+                            .semantics { if (room.choice == null) stateDescription = "Choose terms first" },
                     ) {
                         focusManager.clearFocus()
                         scope.launch { if (room.send()) sent() }
@@ -240,6 +243,7 @@ private fun SuggestionList(room: SettlementRoomModel, onSelect: () -> Unit, onRe
                 SettlementSuggestionCard(
                     suggestion = s,
                     isSelected = room.choice == SettlementRoomModel.Choice.suggestion(s.id),
+                    modifier = Modifier.testTag("settlement.suggestion"),
                     enabled = !room.isSending,
                 ) {
                     onSelect()

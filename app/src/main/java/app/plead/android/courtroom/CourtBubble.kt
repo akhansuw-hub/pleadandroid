@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -296,26 +297,8 @@ private fun JudgeBubble(p: BubbleParams) {
             .padding(start = 14.dp, end = 14.dp, top = 11.dp, bottom = p.bottomPad),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            ScalesGlyph(size = 13.dp)
-            Text(m.speakerName, style = CourtFont.judgeName, color = CourtColor.creamSoft, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false))
-            Spacer(Modifier.weight(1f).width(4.dp))
-            val k = m.kind
-            if (k is CourtBubbleKind.judgeRuling && k.ruling != null) {
-                Text(
-                    k.ruling.rawValue.uppercase(),
-                    style = CourtFont.legal.copy(letterSpacing = PleadType.capsTracking.sp),
-                    color = PleadColor.cream,
-                    maxLines = 1,
-                    modifier = Modifier
-                        .border(1.5.dp, PleadColor.cream.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                )
-            } else if (m.chip != null) {
-                CourtPhaseChip(title = m.chip, tint = CourtColor.creamSoft)
-            }
-        }
+        val k = m.kind
+        CourtJudgeHeader(name = m.speakerName, ruling = (k as? CourtBubbleKind.judgeRuling)?.ruling, chip = m.chip)
         if (m.questions.isEmpty()) {
             if (m.turn.body.isNotEmpty()) {
                 CourtRevealText(
@@ -352,6 +335,49 @@ private fun JudgeBubble(p: BubbleParams) {
             }
         }
     }
+}
+
+/**
+ * The judge bubble's header: scales, judge name, then (pushed right) the ruling box or the phase chip.
+ *
+ * Swift: `HStack(spacing: 6) { ScalesGlyph; Text(name).lineLimit(1); Spacer(minLength: 4); chip }` with the chip
+ * `.fixedSize()`. The name takes every point the fixed chip leaves (the Spacer only gets what is left over), so
+ * the full name shows beside CROSS-EXAMINATION. Compose's `weight` would split the leftover between the name and a
+ * weighted Spacer, halving the name's room ("Judge Wigswo…"): here the name alone is weighted and fills, the
+ * Spacer is its fixed 4 pt minimum, and the chip is measured first at its natural width (never clipped).
+ */
+@Composable
+internal fun CourtJudgeHeader(name: String, ruling: ObjectionRuling?, chip: String?, modifier: Modifier = Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        ScalesGlyph(size = 13.dp)
+        Text(
+            name, style = CourtFont.judgeName, color = CourtColor.creamSoft, maxLines = 1, softWrap = false,
+            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).testTag(CourtJudgeHeaderTags.name),
+        )
+        if (ruling != null) {
+            Spacer(Modifier.width(4.dp))
+            Text(
+                ruling.rawValue.uppercase(),
+                style = CourtFont.legal.copy(letterSpacing = PleadType.capsTracking.sp),
+                color = PleadColor.cream,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .testTag(CourtJudgeHeaderTags.chip)
+                    .border(1.5.dp, PleadColor.cream.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        } else if (chip != null) {
+            Spacer(Modifier.width(4.dp))
+            CourtPhaseChip(title = chip, tint = CourtColor.creamSoft, modifier = Modifier.testTag(CourtJudgeHeaderTags.chip))
+        }
+    }
+}
+
+/** Test tags on [CourtJudgeHeader]'s parts (layout tests only; not iOS identifiers). */
+internal object CourtJudgeHeaderTags {
+    const val name = "court.judgeHeader.name"
+    const val chip = "court.judgeHeader.chip"
 }
 
 // MARK: Party

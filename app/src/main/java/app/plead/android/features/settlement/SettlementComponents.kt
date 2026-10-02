@@ -64,7 +64,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import app.plead.android.designsystem.Chip
 import app.plead.android.designsystem.Color
@@ -156,12 +155,8 @@ fun SettlementSeal(modifier: Modifier = Modifier, size: Dp = 56.dp, caption: Str
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(size * 0.02f)) {
-            Icon(
-                Icons.Outlined.Draw,   // SF Symbol "signature"
-                contentDescription = null,
-                tint = PleadColor.walnut,
-                modifier = Modifier.size(size * (if (caption == null) 0.34f else 0.24f)),
-            )
+            // SF Symbol "signature" at `.font(.system(size: size * (caption == nil ? 0.34 : 0.24), weight: .semibold))`.
+            SignatureGlyph(pointSize = size * (if (caption == null) 0.34f else 0.24f), tint = PleadColor.walnut)
             if (caption != null) {
                 // Art-proportional seal label.
                 Text(
@@ -345,7 +340,7 @@ fun SettlementEntryButton(
         horizontalArrangement = Arrangement.spacedBy(PleadSpacing.s, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Outlined.Draw, contentDescription = null, tint = fg, modifier = Modifier.size(17.dp))
+        SignatureGlyph(pointSize = 15.dp, tint = fg)   // `Image(systemName: "signature").font(.system(size: 15, weight: .semibold))`
         Text(title, style = PleadType.uiButtonSecondary, color = fg)
     }
 }

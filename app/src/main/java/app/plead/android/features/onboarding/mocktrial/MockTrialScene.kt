@@ -20,6 +20,9 @@
 // `Exhibit` / `JudgementOption` (and would send courtroom analytics), so the small equivalents here reuse their
 // shapes, colours, stamps and timing tokens instead.
 //
+// Line bubbles appear in place and, as Swift's `.transition(.asymmetric(insertion: .identity, removal: .opacity))`,
+// fade out where they stood when they leave their slot (MockTrialBubbleExit.kt: 0.22 s ease-out, 0.15 s Reduce Motion).
+//
 // Positions are in dp of the card's own coordinate space (iOS points, top-left origin), laid out with the courtroom's
 // `Modifier.position` / `frameIn` bridges.
 package app.plead.android.features.onboarding
@@ -264,6 +267,9 @@ object MockTrialStage {
 
     fun slot(line: MockTrialLine): Slot = if (line.role == null) Slot.top else Slot.lower
 
+    /** A shown line's opacity: full while current, faded back otherwise (Swift `.opacity(s.current ? 1 : fadedBack)`). */
+    fun opacity(s: ShownLine): Float = if (s.current) 1f else MockTrialTiming.fadedBack.toFloat()
+
     /** What a slot shows for `beat` with `partsShown` parts on screen. */
     fun lines(slot: Slot, beat: MockTrialBeat, partsShown: Int): List<ShownLine> {
         val step = MockTrialScript.step(beat)
@@ -447,6 +453,7 @@ private fun TopBand(
     val label = if (player.entered) player.step.label else null
     val overlayBeat = player.currentBeat == MockTrialBeat.deliberation || player.currentBeat == MockTrialBeat.closed
     val plate = if (label != null && !overlayBeat && player.currentBeat != MockTrialBeat.judgement) label else null
+    val exits = rememberMockTrialBubbleExitHost<MockTrialStage.ShownLine> { it.id }
     // Above the judgement dim ("So ordered." stays bright), under the deliberation / CASE CLOSED overlays.
     BandScroll(band, Modifier.zIndex(6.5f), anchorBottom = true) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -467,20 +474,25 @@ private fun TopBand(
             if (!overlayBeat) {
                 for (s in shown) {
                     key(s.id) {
-                        val alpha by animateFloatAsState(
-                            if (s.current) 1f else MockTrialTiming.fadedBack.toFloat(), fadeSpec(reduceMotion), label = "lineFade",
-                        )
+                        val alpha by animateFloatAsState(MockTrialStage.opacity(s), fadeSpec(reduceMotion), label = "lineFade")
                         MockTrialBubble(
                             line = s.line,
                             isCurrent = s.current,
                             revealComplete = !s.current || player.revealComplete,
                             onAccessibilityAdvance = onAccessibilityAdvance,
-                            modifier = Modifier.graphicsLayer { this.alpha = alpha },
+                            modifier = exits.track(s).graphicsLayer { this.alpha = alpha },
                         )
                     }
                 }
             }
         }
+    }
+    // Swift `.transition(.asymmetric(insertion: .identity, removal: .opacity))`: a line that leaves fades where it stood.
+    MockTrialBubbleExits(
+        exits, shown = if (overlayBeat) emptyList() else shown, alpha = MockTrialStage::opacity,
+        rect = band, zIndex = 6.5f, reduceMotion = reduceMotion,
+    ) { s ->
+        MockTrialBubble(line = s.line, isCurrent = s.current, revealComplete = true, departing = true, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -536,8 +548,21 @@ private fun Easel(player: MockTrialPlayer, layout: MockTrialLayout) {
 private fun LowerBand(player: MockTrialPlayer, layout: MockTrialLayout, reduceMotion: Boolean, onAccessibilityAdvance: () -> Unit) {
     val band = layout.lowerBand
     val beat = player.currentBeat
-    if (!player.entered || beat == MockTrialBeat.deliberation || beat == MockTrialBeat.judgement || beat == MockTrialBeat.closed) return
-    val shown = MockTrialStage.lines(MockTrialStage.Slot.lower, beat, player.partsShown)
+    val exits = rememberMockTrialBubbleExitHost<PartyLine> { it.line.id }
+    val visible = player.entered && beat != MockTrialBeat.deliberation && beat != MockTrialBeat.judgement && beat != MockTrialBeat.closed
+    val shown = if (visible) MockTrialStage.lines(MockTrialStage.Slot.lower, beat, player.partsShown) else emptyList()
+    // Party lines only (the CLAIM and verdict cards are not bubbles): what the exit overlay tracks.
+    val half = shown.size > 1 || beat == MockTrialBeat.closings
+    val bubbles = if (beat == MockTrialBeat.opening || beat == MockTrialBeat.verdict) emptyList() else shown.map { PartyLine(it, half) }
+    // Swift `.transition(.asymmetric(insertion: .identity, removal: .opacity))` on each party line, and the band's own
+    // removal: a line that leaves fades where it stood.
+    MockTrialBubbleExits(exits, shown = bubbles, alpha = { MockTrialStage.opacity(it.line) }, rect = band, zIndex = 4f, reduceMotion = reduceMotion) { p ->
+        MockTrialBubble(
+            line = p.line.line, tailX = layout.tailX(p.line.line.role ?: Role.plaintiff, partyFrame(p.line, layout, p.half)),
+            isCurrent = p.line.current, revealComplete = true, departing = true, modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    if (!visible) return
     val rise = with(LocalDensity.current) { 8.dp.roundToPx() }
     BandScroll(band, Modifier.zIndex(4f)) {
         when {
@@ -560,7 +585,7 @@ private fun LowerBand(player: MockTrialPlayer, layout: MockTrialLayout, reduceMo
             shown.size > 1 -> {
                 // Closings: both sides at once, each under their own podium.
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    for (s in shown) key(s.id) { PartyBubble(player, s, layout, half = true, reduceMotion, onAccessibilityAdvance) }
+                    for (s in shown) key(s.id) { PartyBubble(player, s, layout, half = true, reduceMotion, onAccessibilityAdvance, exits) }
                 }
             }
             shown.isNotEmpty() -> {
@@ -569,7 +594,7 @@ private fun LowerBand(player: MockTrialPlayer, layout: MockTrialLayout, reduceMo
                     Modifier.fillMaxWidth(),
                     contentAlignment = if (beat == MockTrialBeat.closings) Alignment.TopStart else Alignment.TopCenter,
                 ) {
-                    key(s.id) { PartyBubble(player, s, layout, half = beat == MockTrialBeat.closings, reduceMotion, onAccessibilityAdvance) }
+                    key(s.id) { PartyBubble(player, s, layout, half = beat == MockTrialBeat.closings, reduceMotion, onAccessibilityAdvance, exits) }
                 }
             }
         }
@@ -584,24 +609,31 @@ private fun PartyBubble(
     half: Boolean,
     reduceMotion: Boolean,
     onAccessibilityAdvance: () -> Unit,
+    exits: MockTrialBubbleExitHost<PartyLine>,
 ) {
-    val band = layout.lowerBand
     val role = s.line.role ?: Role.plaintiff
-    val w = if (half) (band.width - 8) / 2 else band.width
-    val frame = if (half) {
-        Rect(Offset(if (role == Role.plaintiff) band.left else band.right - w, band.top), Size(w, band.height))
-    } else {
-        band
-    }
-    val alpha by animateFloatAsState(if (s.current) 1f else MockTrialTiming.fadedBack.toFloat(), fadeSpec(reduceMotion), label = "partyFade")
+    val frame = partyFrame(s, layout, half)
+    val w = frame.width
+    val alpha by animateFloatAsState(MockTrialStage.opacity(s), fadeSpec(reduceMotion), label = "partyFade")
     MockTrialBubble(
         line = s.line,
         tailX = layout.tailX(role, frame),
         isCurrent = s.current,
         revealComplete = !s.current || player.revealComplete,
         onAccessibilityAdvance = onAccessibilityAdvance,
-        modifier = Modifier.width(w.dp).graphicsLayer { this.alpha = alpha },
+        modifier = Modifier.width(w.dp).then(exits.track(PartyLine(s, half))).graphicsLayer { this.alpha = alpha },
     )
+}
+
+/** A party line in the lower band and whether it takes half the band (closings): what its exit copy redraws. */
+private data class PartyLine(val line: MockTrialStage.ShownLine, val half: Boolean)
+
+/** A party line's frame in the lower band: the whole band, or (closings) its own half under the speaker's podium. */
+private fun partyFrame(s: MockTrialStage.ShownLine, layout: MockTrialLayout, half: Boolean): Rect {
+    val band = layout.lowerBand
+    val role = s.line.role ?: Role.plaintiff
+    val w = if (half) (band.width - 8) / 2 else band.width
+    return if (half) Rect(Offset(if (role == Role.plaintiff) band.left else band.right - w, band.top), Size(w, band.height)) else band
 }
 
 // MARK: Judgement
@@ -773,12 +805,14 @@ fun MockTrialBubble(
     /** The player completed the beat (a tap, or the help sheet): show every line now. */
     revealComplete: Boolean = false,
     onAccessibilityAdvance: () -> Unit = {},
+    /** A copy that has left its slot and is fading out (MockTrialBubbleExits): no entrance, full text, no semantics. */
+    departing: Boolean = false,
 ) {
     val reduceMotion = accessibilityReduceMotion()
     val plan = remember(line.text) { CourtRevealPlan.make(body = line.text, questions = emptyList(), charsPerLine = 30) }
-    val enter = remember { Animatable(0f) }
-    val elapsed = remember { Animatable(0f) }
-    var entered by remember { mutableStateOf(false) }
+    val enter = remember { Animatable(if (departing) 1f else 0f) }
+    val elapsed = remember { Animatable(if (departing) 1_000f else 0f) }
+    var entered by remember { mutableStateOf(departing) }
     LaunchedEffect(Unit) {
         if (entered) return@LaunchedEffect
         entered = true
@@ -813,9 +847,9 @@ fun MockTrialBubble(
                 transformOrigin = TransformOrigin(0.5f, if (isJudge) 1f else 0f)
                 translationY = if (still) 0f else ((1f - e) * MockTrialTiming.bubbleRise).dp.toPx()
             }
-            .testTag(if (isCurrent) "onboarding.mockTrial.bubble" else "onboarding.mockTrial.previous")
+            .then(if (departing) Modifier else Modifier.testTag(if (isCurrent) "onboarding.mockTrial.bubble" else "onboarding.mockTrial.previous"))
             .clearAndSetSemantics {
-                if (isCurrent) {
+                if (isCurrent && !departing) {
                     contentDescription = line.accessibilityText
                     onClick(label = "Next part of the demo") { onAccessibilityAdvance(); true }
                 }

@@ -345,11 +345,24 @@ Remaining gaps (Android vs iOS, all small):
 - Tab stacks are recreated on tab switch (scroll position of Home/Cases/Us is not kept as `TabView` does).
 - `AWScroll judgement|panel` lands the anchor a little lower than iOS (card not at the very top).
 - Scheduling half sheet: its last line ("If you don't respond in …") sits at the bottom edge in the partial detent.
-- Judge nameplate can truncate ("Judge Wigswo…") beside the long CROSS-EXAMINATION chip (Roboto is wider than SF).
-- Settlement seal glyph is the Material "draw" icon where iOS uses the `signature` SF Symbol.
 - The cold open's first frame can show the status bar for a frame before it hides.
-- Mock trial (from the port): a bubble that leaves its slot disappears instead of fading; see the mock-trial files' headers.
 - Cold launches on the emulator are slow (debug build, unoptimised dex): run `adb shell cmd package compile -m speed -f app.plead.android` after installing for captures.
+
+Fixed since (branch `polish/court`):
+- Judge bubble header truncated the name ("Judge Wigswo…") beside CROSS-EXAMINATION. Cause: the name and a weighted
+  Spacer split the room the chip left, so the name got half of it. `CourtJudgeHeader` (courtroom/CourtBubble.kt) lays it
+  out as Swift's `Text.lineLimit(1) · Spacer(minLength: 4) · chip.fixedSize()`: the name alone fills, the chip keeps its
+  natural width. `CourtJudgeHeaderTests` (Pixel 7 at ×1, ×1.3 up to the bubble's xxLarge cap; 360 dp at ×1; ruling box).
+  On a 360 dp phone at large text the name still truncates, as `lineLimit(1)` does on iOS when the row is too narrow.
+- Mock trial: a line bubble that leaves its slot fades out where it stood (Swift
+  `.transition(.asymmetric(insertion: .identity, removal: .opacity))` under the stage's 0.22 s ease-out, 0.15 s under
+  Reduce Motion) instead of vanishing: `mocktrial/MockTrialBubbleExit.kt` keeps a copy of each departed bubble at its
+  last bounds over the band and fades it (`MockTrialBubbleExitTests`; frames in `screenshots/mocktrial2-cross-bubble-fade.png`).
+  The CLAIM and verdict cards still leave with their beat at once (not bubbles).
+- Settlement seal and "Settle Outside Court" draw Plead's own signature glyph (`features/settlement/SignatureGlyph.kt`,
+  an original vector: x mark, looped initial over the signing line) at the SF Symbol's size and weight, in place of the
+  Material "draw" icon (`SignatureGlyphTests`). `SFSymbol.map["signature"]` (designsystem) still names `Draw`; nothing
+  reads it.
 
 Resolved in the final integration (see below): 3f merged, `AppModel.courtSession`, lock-screen visibility,
 `OnboardingWidgetArt.kt` removed, `AWWidgetPreview` / `AWLiveActivity` screens, widget screenshots.
@@ -469,8 +482,8 @@ Android vs iOS, on purpose:
   no attachment store.
 - `testDefenceDueOpensTheDefenceFlow` is skipped (assumption) until DemoHarness has an `AWDemoStore defence` store, as
   on iOS.
-- iOS identifiers without an Android tag are found by what the node speaks: `settlement.accept` / `.propose` /
-  `.suggestion`, `judgement.option` / `.deliver`.
+- `settlement.accept` / `.propose` / `.suggestion`, `judgement.option` / `.deliver` are test tags on the same elements
+  as iOS (before any `clearAndSetSemantics`); `TrialFlowComposeTests` / `SettlementFlowComposeTests` use them.
 - 21 `testTag`s used to sit after `clearAndSetSemantics` on the same node, which wipes them (onboarding mock-trial
   cards, progress rail, versus card, identity preview, court panel, case previews, court help close / example /
   deadline, case call, Rest…); the tag now comes before it, and the tests use the iOS identifiers again.
