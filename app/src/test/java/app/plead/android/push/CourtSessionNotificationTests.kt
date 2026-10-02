@@ -122,6 +122,34 @@ class CourtSessionNotificationTests {
         assertEquals(2, court.sessions().size)
     }
 
+    /** Product decision (amendment pending in CONTRACTS-v2): alerting section and status-bar icon, never a noise. */
+    @Test fun channelIsDefaultImportanceButSilent() {
+        manager.createNotificationChannel(android.app.NotificationChannel("court_session", "Court in session", NotificationManager.IMPORTANCE_LOW))
+        CourtSessionNotification.ensureChannel(context)
+        assertNull(manager.getNotificationChannel("court_session")) // the old low-importance channel is gone
+        val channel = manager.getNotificationChannel(CourtSessionNotification.channelId)
+        assertEquals("court_session_v2", channel.id)
+        assertEquals("Court in session", channel.name.toString())
+        assertEquals(NotificationManager.IMPORTANCE_DEFAULT, channel.importance)
+        assertNull(channel.sound)
+        assertFalse(channel.shouldVibrate())
+        assertFalse(channel.canShowBadge())
+        assertEquals(Notification.VISIBILITY_PUBLIC, channel.lockscreenVisibility)
+    }
+
+    @Test fun postsAreSilentAndAlertOnce() {
+        court.startDemo("summons")
+        val n = posted().single()
+        assertEquals("court_session_v2", n.channelId)
+        assertTrue(n.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0)
+        assertNull(n.sound)
+        assertNull(n.vibrate)
+        // NotificationCompat's setSilent: no sound / vibration and only a (never posted) summary may alert.
+        assertEquals(Notification.GROUP_ALERT_SUMMARY, n.groupAlertBehavior)
+        @Suppress("DEPRECATION")
+        assertEquals(Notification.PRIORITY_DEFAULT, n.priority)
+    }
+
     @Test fun copyHelpersMatchTheLiveActivity() {
         assertEquals("021", CourtSessionNotification.number(21))
         assertEquals("1204", CourtSessionNotification.number(1204))

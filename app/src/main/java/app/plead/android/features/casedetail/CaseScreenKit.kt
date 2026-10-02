@@ -76,6 +76,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
@@ -107,6 +108,7 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filter
 
 // MARK: - Symbols
@@ -229,8 +231,36 @@ fun CaseSheetHost(
         modifier = modifier.statusBarsPadding(),
     ) {
         CompositionLocalProvider(LocalSheetDismissGuard provides guard) {
-            Column(if (partial) Modifier else Modifier.fillMaxHeight()) { content() }
+            // iOS lays a detent sheet out at the detent's height, so its ScrollView ends (padding + home indicator)
+            // at the visible bottom in `.medium` too. A Material sheet keeps one height and slides it down instead,
+            // which left the bottom of the content (and its padding) below the screen in the partial state. Partial
+            // sheets are full height (iOS `.large`) and lay the content out in the part that is on screen.
+            if (partial) {
+                Column(
+                    Modifier.fillMaxHeight().layout { measurable, constraints ->
+                        val offset = runCatching { state.requireOffset() }.getOrNull()
+                        val visible = SheetDetentLayout.visibleHeight(constraints.maxHeight, offset)
+                        val placeable = measurable.measure(constraints.copy(minHeight = visible, maxHeight = visible))
+                        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, 0) }
+                    },
+                ) { Column(Modifier.fillMaxHeight()) { content() } }
+            } else {
+                Column(Modifier.fillMaxHeight()) { content() }
+            }
         }
+    }
+}
+
+/** How a partial [CaseSheetHost] fits its content to the detent (Swift: the sheet is laid out at the detent height). */
+object SheetDetentLayout {
+    /**
+     * The content height that is on screen: the sheet's content box is [maxHeight] tall (the window minus the status
+     * bar above and the navigation bar below, both applied as padding) and its top sits [offset] px below its
+     * expanded position. Before the sheet has anchors (`offset == null` / NaN) the whole height is used.
+     */
+    fun visibleHeight(maxHeight: Int, offset: Float?): Int {
+        if (offset == null || offset.isNaN()) return maxHeight
+        return (maxHeight - offset.roundToInt()).coerceIn(0, maxHeight)
     }
 }
 
@@ -600,13 +630,29 @@ class ScrollAnchors {
 
     /**
      * Scroll [scroll] so the anchor [id] sits at the top ([center] false) or the centre of a viewport [viewport] px
-     * tall. Returns false when the anchor is not laid out.
+     * tall. [contentPaddingTop] is the padding the scrolled column applies inside its scroll (`.verticalScroll().padding()`):
+     * the recorded frames are relative to the padded content, the scroll offset is not. Returns false when the anchor
+     * is not laid out.
      */
-    suspend fun scrollTo(id: String, scroll: androidx.compose.foundation.ScrollState, viewport: Int, center: Boolean): Boolean {
+    suspend fun scrollTo(
+        id: String,
+        scroll: androidx.compose.foundation.ScrollState,
+        viewport: Int,
+        center: Boolean,
+        contentPaddingTop: Int = 0,
+    ): Boolean {
         val (top, height) = frames[id] ?: return false
-        val target = if (center) top + height / 2 - viewport / 2 else top
-        scroll.animateScrollTo(target.coerceIn(0, scroll.maxValue))
+        scroll.animateScrollTo(target(top, height, viewport, center, contentPaddingTop, scroll.maxValue))
         return true
+    }
+
+    companion object {
+        /** The scroll offset for `scrollTo(id, anchor: center ? .center : .top)`, clamped to `0…maxScroll`. */
+        fun target(top: Int, height: Int, viewport: Int, center: Boolean, contentPaddingTop: Int, maxScroll: Int): Int {
+            val y = contentPaddingTop + top
+            val target = if (center) y + height / 2 - viewport / 2 else y
+            return target.coerceIn(0, maxScroll.coerceAtLeast(0))
+        }
     }
 }
 

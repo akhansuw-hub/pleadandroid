@@ -92,6 +92,7 @@ import app.plead.android.designsystem.Color as HexColor
 import app.plead.android.widgets.PixelJudgeGlyph
 import app.plead.android.widgets.PixelJudgeGlyphCanvas
 import app.plead.android.widgets.PleadWidgetPalette
+import app.plead.android.widgets.WidgetFitText
 
 object WidgetsCopy {
     /** iOS "Widgets & Live Activities". */
@@ -401,12 +402,12 @@ private fun HomeWidgetMock(now: Instant, modifier: Modifier = Modifier) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 6.dp).height(1.5.dp).background(PleadWidgetPalette.romanceBlush))
             val p = snapshot.primary
             if (p != null) {
-                Text(
+                // `.lineLimit(1).minimumScaleFactor(0.75)`, as the real small widget (widgets/WidgetTextFit).
+                WidgetFitText(
                     p.caseTitle,
                     style = TextStyle(fontFamily = FontFamily.Serif, fontSize = 15.sp),
                     color = PleadWidgetPalette.deepWine,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    minScale = 0.75f,
                 )
                 Row(
                     Modifier.background(PleadWidgetPalette.chipFill, CircleShape).padding(horizontal = 8.dp, vertical = 4.dp),
