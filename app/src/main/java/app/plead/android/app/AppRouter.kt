@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
@@ -239,8 +241,10 @@ fun TabNavHost(
 ) {
     val currentOnPathChange by rememberUpdatedState(onPathChange)
     val currentPath by rememberUpdatedState(path)
-    // The case ids currently on the stack above the root (only this function navigates this controller).
-    val built = remember(navController) { mutableListOf<UUID>() }
+    // The case ids currently on the stack above the root (only this function navigates this controller). Saved with
+    // the controller's own stack, so a stack restored by MainTabScreen's saveable holder (the tab coming back) is
+    // adopted as it is instead of rebuilt: the record keeps its state and nothing re-animates.
+    val built = rememberSaveable(saver = builtStackSaver) { mutableListOf<UUID>() }
     NavHost(navController = navController, startDestination = AppRoutes.root) {
         composable(AppRoutes.root) { root() }
         composable(
@@ -276,5 +280,10 @@ fun TabNavHost(
         }
     }
 }
+
+private val builtStackSaver = listSaver<MutableList<UUID>, String>(
+    save = { ids -> ids.map(UUID::toString) },
+    restore = { saved -> saved.mapNotNull(::parseUUID).toMutableList() },
+)
 
 private fun NavBackStackEntry.caseId(): UUID? = parseUUID(arguments?.getString(AppRoutes.caseIdArg))

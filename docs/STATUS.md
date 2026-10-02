@@ -340,14 +340,23 @@ after their iOS counterpart in `docs/screenshots/v2/` where one exists. Many iOS
 current Swift source in those cases.
 
 Remaining gaps (Android vs iOS, all small):
-- Tab bar: Android draws the configured paper-white bar (`AppDelegate.styleNavigationBars`) on every tab; iOS 26's
-  Liquid Glass renders it dark over the Court.
-- Tab stacks are recreated on tab switch (scroll position of Home/Cases/Us is not kept as `TabView` does).
+- Resolved: tab bar over the Court. `app/TabBarStyle.kt`: the paper-white bar on Home/Cases/Us, and over the Court the
+  dark bar iOS 26 renders there (background #401B17, items #FFECE8, selected #BC4A46, no hairline; sampled from
+  `court-clean-1-17pro.png`), cross-faded with `PleadMotion.fade()` (snaps with Reduce Motion). The Liquid Glass pill
+  behind the selected item is not drawn on either bar. `docs/screenshots/tabbar-court.png`, `tabbar-home.png`.
+- Resolved: tab state retention. `MainTabScreen` keeps each tab's saveable state in a `SaveableStateHolder` (scroll
+  positions, the tab's NavController and its records' state, Us's avatar editor); `TabNavHost` adopts a restored stack
+  instead of rebuilding it. Only the selected tab stays composed, so the Court's motion stops when it is left (iOS
+  `CourtroomScene.onDisappear`). `features/shell/TabStateComposeTests`, `docs/screenshots/tabs-home-scroll-kept.png`.
 - `AWScroll judgement|panel` lands the anchor a little lower than iOS (card not at the very top).
 - Scheduling half sheet: its last line ("If you don't respond in …") sits at the bottom edge in the partial detent.
 - Judge nameplate can truncate ("Judge Wigswo…") beside the long CROSS-EXAMINATION chip (Roboto is wider than SF).
 - Settlement seal glyph is the Material "draw" icon where iOS uses the `signature` SF Symbol.
-- The cold open's first frame can show the status bar for a frame before it hides.
+- Resolved: cold open status bar. `features/coldopen/ColdOpenSystemBars.kt` (from `MainActivity.onCreate`) requests the
+  hide before the window is added and, while the cold open plays, finishes the system's status-bar hide animation at
+  once (the splash window controls the bar until it exits; the hide used to fade over the first cold-open frames).
+  The bar now leaves while the system splash is still up; RootScreen shows it again when the cold open ends, as before.
+  `docs/screenshots/coldopen-first-frames.png` (splash, splash without bar, first app frame, first scene).
 - Mock trial (from the port): a bubble that leaves its slot disappears instead of fading; see the mock-trial files' headers.
 - Cold launches on the emulator are slow (debug build, unoptimised dex): run `adb shell cmd package compile -m speed -f app.plead.android` after installing for captures.
 

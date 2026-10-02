@@ -35,7 +35,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.snap
+import app.plead.android.designsystem.PleadMotion
+import app.plead.android.designsystem.accessibilityReduceMotion
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.Dp
 import app.plead.android.courtroom.JudgeSprite
@@ -88,15 +95,23 @@ private val tabItems = listOf(
 fun MainTabScreen(model: AppModel, modifier: Modifier = Modifier) {
     val router = model.router
     Column(modifier.fillMaxSize().background(PleadColor.background)) {
+        // iOS `TabView` keeps each tab's state while another tab shows (scroll position, the pushed case record, the
+        // nav stack): each tab's saveable state lives in this holder under the tab's name and is restored when it comes
+        // back. Only the selected tab stays composed, so the courtroom's motion stops when the Court tab is left (iOS
+        // `CourtroomScene.onDisappear`: `entrance.end(); motion.disappear()`).
+        val tabStates = rememberSaveableStateHolder()
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            when (router.tab) {
-                AppTab.home -> HomeTab(model)
-                AppTab.cases -> CasesTab(model)
-                // The courtroom draws edge to edge: under the status bar and (it measures itself
-                // `CourtTabLayout.tabBarHeight` + the navigation bar taller than this slot) under the tab bar below,
-                // which is drawn after it.
-                AppTab.court -> CourtTab(model)
-                AppTab.us -> UsTab(model, editAvatar = editAvatarSlot(model), judgeSprite = judgeSpriteSlot)
+            val tab = router.tab
+            tabStates.SaveableStateProvider(tab.name) {
+                when (tab) {
+                    AppTab.home -> HomeTab(model)
+                    AppTab.cases -> CasesTab(model)
+                    // The courtroom draws edge to edge: under the status bar and (it measures itself
+                    // `CourtTabLayout.tabBarHeight` + the navigation bar taller than this slot) under the tab bar below,
+                    // which is drawn after it.
+                    AppTab.court -> CourtTab(model)
+                    AppTab.us -> UsTab(model, editAvatar = editAvatarSlot(model), judgeSprite = judgeSpriteSlot)
+                }
             }
         }
         PleadTabBar(selected = router.tab, onSelect = { router.tab = it })
@@ -143,24 +158,31 @@ private fun MainSheet(model: AppModel, sheet: AppSheet) {
 
 /**
  * The iOS tab bar (AppDelegate.styleNavigationBars): paper white at 96 %, a hairline separator on top,
- * cocoa icons and labels at 72 % (semibold 10), the selected tab burgundy (bold 10).
+ * cocoa icons and labels at 72 % (semibold 10), the selected tab burgundy (bold 10). Over the Court it renders dark
+ * as iOS 26 does there ([TabBarStyle.court]); the colours cross-fade on the switch (instant with Reduce Motion).
  */
 @Composable
 fun PleadTabBar(selected: AppTab, onSelect: (AppTab) -> Unit, modifier: Modifier = Modifier) {
-    val unselected = PleadColor.cocoa.copy(alpha = 0.72f)
+    val style = TabBarStyle.forTab(selected)
+    val reduceMotion = accessibilityReduceMotion()
+    val spec: AnimationSpec<Color> = if (reduceMotion) snap() else PleadMotion.fade()
+    val background by animateColorAsState(style.background, spec, label = "tabBarBackground")
+    val separator by animateColorAsState(style.separator, spec, label = "tabBarSeparator")
+    val unselected by animateColorAsState(style.unselected, spec, label = "tabBarUnselected")
+    val selectedTint by animateColorAsState(style.selected, spec, label = "tabBarSelected")
     Column(
         modifier
             // UI tests: the bar's frame (iOS `app.tabBars.firstMatch`); the bar itself has no other semantics.
             .testTag("tabBar")
             .fillMaxWidth()
-            .background(PleadColor.paperWhite.copy(alpha = 0.96f))
+            .background(background)
             .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
-        HorizontalDivider(thickness = 0.5.dp, color = PleadColor.separator)
+        HorizontalDivider(thickness = 0.5.dp, color = separator)
         Row(Modifier.fillMaxWidth().height(49.dp), verticalAlignment = Alignment.CenterVertically) {
             tabItems.forEach { item ->
                 val isSelected = item.tab == selected
-                val tint = if (isSelected) PleadColor.burgundy else unselected
+                val tint = if (isSelected) selectedTint else unselected
                 Column(
                     modifier = Modifier
                         .weight(1f)
