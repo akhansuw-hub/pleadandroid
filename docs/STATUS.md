@@ -348,8 +348,15 @@ current Swift source in those cases.
 Remaining gaps (Android vs iOS, all small; the polish branches fixed most of them, marked "Fixed"):
 - Fixed (polish/shell): tab bar over the Court. `app/TabBarStyle.kt`: the paper-white bar on Home/Cases/Us, and over the Court the
   dark bar iOS 26 renders there (background #401B17, items #FFECE8, selected #BC4A46, no hairline; sampled from
-  `court-clean-1-17pro.png`), cross-faded with `PleadMotion.fade()` (snaps with Reduce Motion). The Liquid Glass pill
-  behind the selected item is not drawn on either bar. `docs/screenshots/tabbar-court.png`, `tabbar-home.png`.
+  `court-clean-1-17pro.png`), cross-faded with `PleadMotion.fade()` (snaps with Reduce Motion). `docs/screenshots/tabbar-court.png`, `tabbar-home.png`.
+- Fixed (polish2/tabpill): the iOS 26 selected-tab pill. `app/TabBarPill.kt` draws a capsule behind the selected item,
+  its tab's slot inset 4 dp (iOS 4 pt from the bar edge; ~95 x 45 dp on a Pixel 7, iOS 98 x 52 pt) and 2 dp inside the
+  49 dp row; icon and label are centred on it. Tokens in `TabBarStyle.kt` (`pillFill`, `pillHighlight`,
+  `TabBarPillMetrics`): light cocoa 8 % (#EDE9DF over the iOS bar, flat), Court #F4BBB7 at 20 % (= #643B37, sampled)
+  with a faint blush rim on the trailing edge. It slides on `swiftSpring(0.4, bounce 0.15)`, clamped to the end tabs,
+  colours cross-fading with the bar; jumps with Reduce Motion. `TabBarStyleTests`, `features/shell/TabBarPillComposeTests`,
+  `docs/screenshots/tabbar-pill-slide.png`. Still differs from iOS: no live glass refraction/blur of the content behind,
+  and the bar stays docked full width (the pill is shorter than iOS's, as the 49 dp row is fixed).
 - Fixed (polish/shell): tab state retention. `MainTabScreen` keeps each tab's saveable state in a `SaveableStateHolder` (scroll
   positions, the tab's NavController and its records' state, Us's avatar editor); `TabNavHost` adopts a restored stack
   instead of rebuilding it. Only the selected tab stays composed, so the Court's motion stops when it is left (iOS

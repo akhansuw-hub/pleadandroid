@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -160,6 +161,7 @@ private fun MainSheet(model: AppModel, sheet: AppSheet) {
  * The iOS tab bar (AppDelegate.styleNavigationBars): paper white at 96 %, a hairline separator on top,
  * cocoa icons and labels at 72 % (semibold 10), the selected tab burgundy (bold 10). Over the Court it renders dark
  * as iOS 26 does there ([TabBarStyle.court]); the colours cross-fade on the switch (instant with Reduce Motion).
+ * iOS 26's selection pill sits behind the selected item ([TabBarPill]) and slides to a newly selected tab.
  */
 @Composable
 fun PleadTabBar(selected: AppTab, onSelect: (AppTab) -> Unit, modifier: Modifier = Modifier) {
@@ -179,40 +181,46 @@ fun PleadTabBar(selected: AppTab, onSelect: (AppTab) -> Unit, modifier: Modifier
             .windowInsetsPadding(WindowInsets.navigationBars),
     ) {
         HorizontalDivider(thickness = 0.5.dp, color = separator)
-        Row(Modifier.fillMaxWidth().height(49.dp), verticalAlignment = Alignment.CenterVertically) {
-            tabItems.forEach { item ->
-                val isSelected = item.tab == selected
-                val tint = if (isSelected) selectedTint else unselected
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics { this.selected = isSelected }
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = { onSelect(item.tab) },
+        // The 49 dp item row (its height is part of `CourtTabLayout.tabBarHeight`); the selected-tab pill is drawn
+        // behind the items.
+        Box(Modifier.fillMaxWidth().height(49.dp)) {
+            TabBarPill(selectedIndex = tabItems.indexOfFirst { it.tab == selected }, count = tabItems.size, style = style)
+            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                tabItems.forEach { item ->
+                    val isSelected = item.tab == selected
+                    val tint = if (isSelected) selectedTint else unselected
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .semantics { this.selected = isSelected }
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                role = Role.Tab,
+                                onClick = { onSelect(item.tab) },
+                            ),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        // Icon and label centred on the pill, as iOS 26 centres them on its selection capsule.
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Icon(
+                            imageVector = if (isSelected) item.selectedIcon else item.icon,
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(26.dp),
                         )
-                        .padding(top = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Top,
-                ) {
-                    Icon(
-                        imageVector = if (isSelected) item.selectedIcon else item.icon,
-                        contentDescription = null,
-                        tint = tint,
-                        modifier = Modifier.size(26.dp),
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = item.label,
-                        color = tint,
-                        style = TextStyle(
-                            fontFamily = FontFamily.Default,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                            fontSize = 10.sp,
-                        ),
-                    )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = item.label,
+                            color = tint,
+                            style = TextStyle(
+                                fontFamily = FontFamily.Default,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                fontSize = 10.sp,
+                            ),
+                        )
+                    }
                 }
             }
         }
