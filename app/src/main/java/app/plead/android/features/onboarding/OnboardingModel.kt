@@ -10,6 +10,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.plead.android.app.OnboardingHost
+import app.plead.android.features.onboarding.about.AboutAnswerCodec
+import app.plead.android.features.onboarding.about.AboutQuestion
 import app.plead.android.models.Avatar
 import app.plead.android.models.Profile
 import app.plead.android.services.Analytics
@@ -36,7 +38,14 @@ enum class OnboardingStep(val rawValue: Int) {
     /** Amendment y: onboarding step 2 on screen, raw value 11 on disk. */
     mockTrial(11),
     /** Amendment ai: onboarding step 3 on screen (after the demo, watched or skipped), raw value 12 on disk. */
-    summonsIntro(12);
+    summonsIntro(12),
+    /**
+     * Amendment bd: the five "About you two" questions and the Courtroom Oath, shown between Welcome and the Mock Trial
+     * (raw values appended, 13–18). Pre-auth, not skippable, outside the counted screens (their own six-segment rail).
+     */
+    aboutFrequency(13), aboutTopics(14), aboutOutcome(15), aboutRepeat(16), aboutEasier(17), oath(18),
+    /** Amendment bg: the intro that opens the "About you two" questions (shown right after Welcome; raw value 19). */
+    aboutIntro(19);
 
     /** Index in `displayOrder`: the only thing ordering compares. */
     val displayIndex: Int get() = displayOrder.indexOf(this).let { if (it < 0) displayOrder.size else it }
@@ -62,20 +71,41 @@ enum class OnboardingStep(val rawValue: Int) {
             widgets -> "widgets"
             tracking -> "tracking"
             ready -> "ready"
+            aboutFrequency -> "about_frequency"
+            aboutTopics -> "about_topics"
+            aboutOutcome -> "about_outcome"
+            aboutRepeat -> "about_repeat"
+            aboutEasier -> "about_easier"
+            oath -> "oath"
+            aboutIntro -> "about_intro"
         }
 
-    /** 1-based position in `steps` (a step not in the list reports the position of the next active one). */
-    fun position(steps: List<OnboardingStep> = activeSteps()): Int =
-        (steps.indexOfFirst { it atOrAfter this }.takeIf { it >= 0 } ?: (steps.size - 1)) + 1
+    /** One of the "About you two" section's steps: the intro (amendment bg) and the six of amendment bd. */
+    val isAboutYouTwo: Boolean get() = this in aboutSection
+
+    /** 0-based segment on the six-segment rail (null for the other twelve). */
+    val aboutIndex: Int? get() = aboutYouTwoSteps.indexOf(this).takeIf { it >= 0 }
+
+    /** Counted by position / progress / "N OF M" / the court rail (amendment bd: the six are not). */
+    val isCounted: Boolean get() = !isAboutYouTwo
+
+    /**
+     * 1-based position among the counted steps of `steps` (a step not counted, or not in the list, reports the position
+     * of the next counted one: the six "About you two" steps report the Mock Trial's).
+     */
+    fun position(steps: List<OnboardingStep> = activeSteps()): Int {
+        val counted = countedSteps(steps)
+        return (counted.indexOfFirst { it atOrAfter this }.takeIf { it >= 0 } ?: (counted.size - 1)) + 1
+    }
 
     fun next(steps: List<OnboardingStep> = activeSteps()): OnboardingStep? = steps.firstOrNull { it after this }
     fun previous(steps: List<OnboardingStep> = activeSteps()): OnboardingStep? = steps.lastOrNull { it before this }
 
     /** Progress-bar fill (screens 2–N). */
-    fun progress(steps: List<OnboardingStep> = activeSteps()): Double = position(steps).toDouble() / steps.size
+    fun progress(steps: List<OnboardingStep> = activeSteps()): Double = position(steps).toDouble() / maxOf(countedSteps(steps).size, 1)
 
-    /** "1 OF 11": always from the active step count. */
-    fun positionLabel(steps: List<OnboardingStep> = activeSteps()): String = "${position(steps)} OF ${steps.size}"
+    /** "1 OF 11": always from the counted step count (amendment bd: the six are not counted). */
+    fun positionLabel(steps: List<OnboardingStep> = activeSteps()): String = "${position(steps)} OF ${countedSteps(steps).size}"
 
     /** Welcome has no top bar (no progress, nothing to go back to); every later screen does. */
     val showsChrome: Boolean get() = this != welcome
@@ -87,9 +117,16 @@ enum class OnboardingStep(val rawValue: Int) {
     val isPreAuth: Boolean get() = this atOrBefore identity
 
     companion object {
-        /** The screens in the order they are shown (amendment y). */
+        /** Amendment bd: the six steps between Welcome and the Mock Trial, in order. */
+        val aboutYouTwoSteps: List<OnboardingStep> get() = listOf(aboutFrequency, aboutTopics, aboutOutcome, aboutRepeat, aboutEasier, oath)
+
+        /** Amendment bg: the intro plus the six (not counted; the rail shows only on the six). */
+        val aboutSection: List<OnboardingStep> get() = listOf(aboutIntro) + aboutYouTwoSteps
+
+        /** The screens in the order they are shown (amendment y; amendment bd puts the six new ones after Welcome). */
         val displayOrder: List<OnboardingStep> = listOf(
-            welcome, mockTrial, summonsIntro, howItWorks, aiCourt, examples, identity, partner, notifications, tracking, widgets, ready,
+            welcome, aboutIntro, aboutFrequency, aboutTopics, aboutOutcome, aboutRepeat, aboutEasier, oath,
+            mockTrial, summonsIntro, howItWorks, aiCourt, examples, identity, partner, notifications, tracking, widgets, ready,
         )
 
         /** `CaseIterable` in display order, so anything iterating the cases walks the flow as shown. */
@@ -107,10 +144,14 @@ enum class OnboardingStep(val rawValue: Int) {
         fun persisted(raw: Int): OnboardingStep = fromRaw(raw) ?: if (raw < 1) welcome else ready
 
         /**
-         * The steps actually shown, in order. Amendment ak (supersedes amendment t's gating): every step, including
-         * `.tracking` on iOS; on Android every step but `.tracking` (amendment az: no ATT).
+         * The steps actually shown, in order (navigation, resume). Amendment ak (supersedes amendment t's gating): every
+         * step, including `.tracking` on iOS; on Android every step but `.tracking` (amendment az: no ATT). Amendment bd:
+         * the six "About you two" steps are in here but are not counted (`countedSteps`).
          */
         fun activeSteps(): List<OnboardingStep> = if (skipsTracking) displayOrder.filter { it != tracking } else displayOrder
+
+        /** The counted steps among `steps` (eleven on Android, twelve on iOS): "N OF M", progress and the court rail. */
+        fun countedSteps(steps: List<OnboardingStep> = activeSteps()): List<OnboardingStep> = steps.filter { it.isCounted }
 
         fun max(a: OnboardingStep, b: OnboardingStep): OnboardingStep = if (a.displayIndex >= b.displayIndex) a else b
         fun min(a: OnboardingStep, b: OnboardingStep): OnboardingStep = if (a.displayIndex <= b.displayIndex) a else b
@@ -147,9 +188,20 @@ object OnboardingFlow {
      * Whether the primary CTA on `step` may move forward. Identity needs only a name: THAT'S ME
      * creates the (anonymous) session itself.
      */
-    fun canAdvance(step: OnboardingStep, displayName: String): Boolean = when (step) {
+    fun canAdvance(step: OnboardingStep, displayName: String): Boolean =
+        canAdvance(step, displayName, answers = emptyList(), oathTaken = false)
+
+    /**
+     * Amendment bd: an "About you two" question needs an answer (one on a pick-one screen, at least one on a choose-all
+     * screen: either way a non-empty `answers`); the oath only advances once it has been taken (the full 2-second
+     * hold, or activation with an assistive technology). Nothing is preselected and nothing skips.
+     */
+    fun canAdvance(step: OnboardingStep, displayName: String, answers: List<String>, oathTaken: Boolean): Boolean = when (step) {
         OnboardingStep.identity -> trimmedName(displayName).isNotEmpty()
         OnboardingStep.ready -> false
+        OnboardingStep.aboutFrequency, OnboardingStep.aboutTopics, OnboardingStep.aboutOutcome,
+        OnboardingStep.aboutRepeat, OnboardingStep.aboutEasier -> answers.isNotEmpty()
+        OnboardingStep.oath -> oathTaken
         else -> true
     }
 
@@ -252,6 +304,14 @@ class OnboardingModel(private val defaults: UserDefaults = UserDefaults.standard
      */
     var liveActivitiesEnabled: Boolean by persistedFlag(Key.liveActivitiesEnabled, initial = true)
         private set
+    // Amendment bd (declared before `init`, which loads them).
+    /** The stored option ids per question (empty = unanswered). Device-only: never sent to analytics or the backend. */
+    private val aboutAnswers = androidx.compose.runtime.mutableStateMapOf<AboutQuestion, List<String>>()
+
+    /** The oath was taken (the full hold, or assistive activation). */
+    var oathTaken: Boolean by persistedFlag(Key.oathTaken)
+        private set
+
     /** The widget families found at the last check (for the success line; not persisted). */
     var detectedWidgetFamilies: List<WidgetFamily> by mutableStateOf(emptyList())
         private set
@@ -269,7 +329,7 @@ class OnboardingModel(private val defaults: UserDefaults = UserDefaults.standard
     private var startedTracked = false
     private var loading = false
 
-    /** The screens actually shown, in order: every count, progress, "1 OF N", back/next and resume uses this. */
+    /** The screens actually shown, in order: back/next and resume (counts go through `countedSteps`, amendment bd). */
     val activeSteps: List<OnboardingStep> get() = OnboardingStep.activeSteps()
     /** "1 OF 11" for the current step. */
     val positionLabel: String get() = step.positionLabel(activeSteps)
@@ -307,7 +367,7 @@ class OnboardingModel(private val defaults: UserDefaults = UserDefaults.standard
         val savedUserStep = int(Key.step, scope)
         if (savedUserStep == null) {
             // First time this account is seen on this device: carry the pre-auth answers across.
-            for (key in listOf(Key.displayName, Key.avatar)) {
+            for (key in listOf(Key.displayName, Key.avatar) + Key.aboutYouTwo) {
                 val v = defaults.objectForKey(key.key(null))
                 if (v != null && !defaults.has(key.key(scope))) defaults.set(v, key.key(scope))
             }
@@ -328,11 +388,25 @@ class OnboardingModel(private val defaults: UserDefaults = UserDefaults.standard
     // MARK: Navigation
 
     /** The primary forward CTA on the current screen (`onboarding_continue_tapped {screen_id}`). */
-    override fun advance() {
+    override fun advance() = advance(haptic = true)
+
+    /**
+     * The primary forward CTA with amendment bf's page turn: when the step actually advances, one soft haptic
+     * (`OnboardingHaptics.pageTurn`). `haptic = false` for screens that already play their own completion haptic (the
+     * oath's strike and success, Court Notices when notifications were just enabled). Refused advances (an unanswered
+     * question, the last step) are silent.
+     */
+    fun advance(haptic: Boolean) {
         if (step.next(activeSteps) == null) return
+        // Amendment bd: the six are not skippable (CONTINUE is disabled until answered; the oath needs its hold).
+        if (step.isAboutYouTwo && !canAdvanceAboutYouTwo(step)) return
         track(OnboardingEvent.continueTapped, mapOf("screen_id" to step.screenId))
+        if (haptic) pageTurnHaptic()
         moveForward()
     }
+
+    /** Amendment bf: the page-turn haptic (the container supplies the view-based one; tests substitute it to count). */
+    var pageTurnHaptic: () -> Unit = { OnboardingHaptics.pageTurn(null) }
 
     private fun moveForward() {
         val next = step.next(activeSteps) ?: return
@@ -414,6 +488,48 @@ class OnboardingModel(private val defaults: UserDefaults = UserDefaults.standard
         if (step != OnboardingStep.mockTrial) return
         track(OnboardingEvent.mockTrialSkipped, mapOf("beat" to mockTrialBeat.analyticsName))
         moveForward()
+    }
+
+    // MARK: About you two + the Courtroom Oath (amendment bd)
+
+    fun answers(question: AboutQuestion): List<String> = aboutAnswers[question].orEmpty()
+
+    fun isSelected(optionId: String, question: AboutQuestion): Boolean = answers(question).contains(optionId)
+
+    /**
+     * Taps an option: a pick-one question takes it as the answer; a choose-all question toggles it (stored in option
+     * order, whatever order they were tapped in). Unknown ids are ignored.
+     */
+    fun select(optionId: String, question: AboutQuestion) {
+        aboutAnswers[question] = AboutAnswerCodec.toggled(optionId, answers(question), question)
+        if (!loading) {
+            val value = AboutAnswerCodec.encode(answers(question), question)
+            if (value != null) save(question.storageKey, value) else defaults.removeObject(question.storageKey.key(scope))
+        }
+    }
+
+    /** The CTA rule for one of the six (amendment bd). */
+    fun canAdvanceAboutYouTwo(s: OnboardingStep): Boolean =
+        OnboardingFlow.canAdvance(s, displayName, answers = AboutQuestion.forStep(s)?.let(::answers).orEmpty(), oathTaken = oathTaken)
+
+    /**
+     * The oath button completed (2-second hold, or TalkBack / Switch Access activation): remembered, then the usual
+     * continue → the Mock Trial. Ignored once the step has moved on.
+     */
+    fun takeOath() {
+        if (step != OnboardingStep.oath) return
+        oathTaken = true
+        // The oath already struck the gavel (heavy impact + success): no page-turn haptic on top (amendment bf).
+        advance(haptic = false)
+    }
+
+    /** DEBUG harness (`AWAboutAnswered YES`): the mockup's answers, so the answered states can be captured. */
+    fun fillAboutYouTwoForDemo() {
+        select("few_times_week", AboutQuestion.frequency)
+        for (id in listOf("chores", "food")) if (!isSelected(id, AboutQuestion.topics)) select(id, AboutQuestion.topics)
+        select("both_insist", AboutQuestion.outcome)
+        select("sometimes", AboutQuestion.repeats)
+        for (id in listOf("feeling_heard", "fair_compromise")) if (!isSelected(id, AboutQuestion.easier)) select(id, AboutQuestion.easier)
     }
 
     // MARK: Screen 8 · Widgets & Live Activities
@@ -504,6 +620,7 @@ class OnboardingModel(private val defaults: UserDefaults = UserDefaults.standard
         if (target atOrAfter OnboardingStep.partner) {
             togetherSince = LocalDate.of(2024, 2, 14).atStartOfDay(ZoneId.systemDefault()).toInstant()
         }
+        if (app.plead.android.app.DemoHarness.aboutAnswered) fillAboutYouTwoForDemo()
         go(target)
     }
 
@@ -517,10 +634,18 @@ class OnboardingModel(private val defaults: UserDefaults = UserDefaults.standard
         widgetSetupComplete("widgetSetupComplete"), configuredPleadWidget("configuredPleadWidget"),
         liveActivitiesEnabled("liveActivitiesEnabled"),
         /** Amendment at: the tracking step was passed after the reorder. */
-        trackingSeen("trackingSeen");
+        trackingSeen("trackingSeen"),
+        /** Amendment bd: the "About you two" answers (option ids; multi-select comma-joined in option order) and the oath. */
+        aboutFrequency("aboutFrequency"), aboutTopics("aboutTopics"), aboutOutcome("aboutOutcome"),
+        aboutRepeat("aboutRepeat"), aboutEasier("aboutEasier"), oathTaken("oathTaken");
 
         /** Swift `Key.name(_:)`: `onboarding.<scope or device>.<rawValue>`. */
         fun key(scope: String?): String = "onboarding.${scope ?: "device"}.$rawValue"
+
+        companion object {
+            /** The amendment bd keys (carried from the device scope to the user's on first sign-in, like name / avatar). */
+            val aboutYouTwo: List<Key> get() = listOf(aboutFrequency, aboutTopics, aboutOutcome, aboutRepeat, aboutEasier, oathTaken)
+        }
     }
 
     private val scope: String? get() = userId?.uuidString
@@ -562,6 +687,9 @@ class OnboardingModel(private val defaults: UserDefaults = UserDefaults.standard
             hasConfiguredPleadWidget = flag(Key.configuredPleadWidget)
             liveActivitiesEnabled = flag(Key.liveActivitiesEnabled, value = true)
             trackingSeen = flag(Key.trackingSeen)
+            aboutAnswers.clear()
+            for (q in AboutQuestion.entries) aboutAnswers[q] = AboutAnswerCodec.decode(defaults.string(q.storageKey.key(scope)), q)
+            oathTaken = flag(Key.oathTaken)
             detectedWidgetFamilies = emptyList()
         } finally {
             loading = false

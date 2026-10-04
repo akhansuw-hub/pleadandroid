@@ -64,7 +64,7 @@ class OnboardingKitTests {
         val steps = OnboardingStep.activeSteps()
         assertEquals(0, OnboardingContainer.railIndex(OnboardingStep.welcome, steps))
         assertEquals(1, OnboardingContainer.railIndex(OnboardingStep.mockTrial, steps))
-        assertEquals(steps.size - 1, OnboardingContainer.railIndex(OnboardingStep.ready, steps))
+        assertEquals(OnboardingStep.countedSteps(steps).size - 1, OnboardingContainer.railIndex(OnboardingStep.ready, steps))
         assertTrue(steps.all(OnboardingContainer::showsTopBar))
     }
 

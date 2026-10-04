@@ -36,7 +36,7 @@
 //   AWFileStep evidence · AWOpenCase 14 · AWScroll outstanding|agreement|closed…|panel|judgement|settlement
 //   AWDocketFilter open|closed · AWJudgementSelect <option id> · AWSettlementPrompt off · AWSettings delete|preview|bottom
 // Onboarding
-//   AWOnboardStep 1…12|<screen_id> · AWOnboardResume YES · AWPermissions fresh · AWNoATTPrompt YES
+//   AWOnboardStep 1…19|<screen_id> · AWAboutAnswered YES · AWOathProgress 0.6 · AWOnboardResume YES · AWPermissions fresh · AWNoATTPrompt YES
 //   AWWidgetDetected YES · AWLiveActivitiesOff YES · AWWidgetSheet home|lock|both · AWLinkMode join|linked
 //   AWPartnerJoin YES|<CODE> · AWDemoJoin paid|unpaid|invalid|limited · AWDemoName <name>
 //   AWSecureConflict YES · AWSecureStage email|code|conflict
@@ -247,8 +247,23 @@ object DemoHarness {
 
     // MARK: Onboarding
 
-    /** `AWOnboardStep 1…12|<screen_id>` (raw; OnboardingStep resolves numbers and screen ids). */
+    /**
+     * `AWOnboardStep 1…19|<screen_id>` (raw; OnboardingStep resolves numbers and screen ids). Amendment bd: 13–18 are the
+     * "About you two" questions and the oath (`about_frequency` … `about_easier`, `oath`); bg: 19 their intro (`about_intro`).
+     */
     val onboardStepRaw: String? get() = d.string("AWOnboardStep")
+
+    /** `AWAboutAnswered YES`: "About you two" opens with the mockup's answers filled in (answered-state captures). */
+    val aboutAnswered: Boolean get() = d.bool("AWAboutAnswered")
+
+    /** `AWOathProgress 0.6`: the oath button's hold held still at that fill, gavel raised to match (debug captures). */
+    val oathProgress: Double? get() = if (isDemo) d.string("AWOathProgress")?.toDoubleOrNull() else null
+
+    /**
+     * `AWOathCelebration 0.35`: the oath shown completed (gavel struck, seal stamped) with its confetti burst held at
+     * that many seconds (amendment be; captures only, never advances).
+     */
+    val oathCelebration: Double? get() = if (isDemo) d.string("AWOathCelebration")?.toDoubleOrNull() else null
 
     /** `AWOnboardResume YES`: keep saved onboarding progress between demo launches. */
     val onboardResume: Boolean get() = d.bool("AWOnboardResume")

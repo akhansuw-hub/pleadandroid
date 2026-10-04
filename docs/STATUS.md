@@ -32,6 +32,52 @@ integrator (wave 4) keeps the summary current. Brief: [PORT.md](PORT.md).
   pill has no live glass refraction / blur (not portable), slow debug cold launches on the emulator.
 - **Needs the user:** see the last section.
 
+## Amendment bd: "About you two" + the Courtroom Oath (2026-10-04)
+
+Six onboarding screens between Welcome and the Mock Trial (`features/onboarding/about/`, ported file-for-file from
+`ArgueWin/Features/Onboarding/About/`): five questions (raw values 13–17) and the oath (18). Not skippable (no Skip;
+CONTINUE disabled until answered; the oath needs the full 2 s hold, TalkBack / Switch Access activation completes it).
+`activeSteps()` now holds all 17 shown steps (navigation, resume); `countedSteps()` keeps "N OF 11", the court rail and
+progress unchanged. Answers persist under `onboarding.<scope>.aboutFrequency` … `.oathTaken` (iOS keys), carry to the
+account's scope on first sign-in, survive relaunch and are wiped by the demo reset; never sent anywhere. Heroes are drawn
+with the courtroom art code (painting crop, `JudgeSprite`, `CourtAvatarSprite`, gavel, new pixel props), on one idle
+clock that stops off screen / in the background / under Reduce Motion.
+Android-only: `AboutScaffold` gives the hero's height back first (down to 112 dp, judge kept in view) before the content
+scrolls, so the CTA stays whole above the navigation bar on 360 × 640 3-button at 130 % text (iOS scrolls the hero away).
+Demo flags `AWOnboardStep 13…18|about_*|oath`, `AWAboutAnswered YES`, `AWOathProgress 0.6`.
+Screenshots: `screenshots/about-{1-frequency,2-topics,3-outcome,4-repeat,5-easier,6-oath}.png`,
+`about-{2-topics,4-repeat,6-oath}-360x640-3button-font130.png`, recording `about-run.mp4`.
+
+## Amendments bf, bg and the docket stamps (2026-10-04)
+
+- **bf (page-turn haptic):** `OnboardingModel.advance(haptic = true)` calls the `pageTurnHaptic` seam once the advance is
+  accepted (the container wires it to `OnboardingHaptics.pageTurn(view)`): a CLICK composition primitive at 0.45 scale
+  (API 30+, touch usage on 33+, the touch-feedback setting checked on 30–32), else the view's KEYBOARD_TAP. Silent on
+  Back, refused taps, jumps, resume, SKIP DEMO / NOT NOW, the oath (`haptic = false`) and Court Notices when
+  notifications were just enabled (`haptic = !allowed`).
+- **bg (intro):** `aboutIntro` (raw 19, `about_intro`, pre-auth, not counted) between Welcome and the first question;
+  logo-only 50 dp bar; `AboutIntroScreen` with a flexible hero (absorbs spare height up to 460 dp; on short screens gives
+  height back to 112 dp before the page scrolls), facts derived from the step lists, START QUESTIONS (`onboarding.about.start`).
+- **Docket stamps (Android bug):** the tilted IN TRIAL / DELIBERATING / VERDICT stamps rest at 92 % opacity; the default
+  compositing rendered that layer offscreen into a buffer the size of the unrotated bounds, cutting the −6° border's
+  corners and edges. `CompositingStrategy.ModulateAlpha` (no offscreen buffer) fixes `CaseStatusStamp` and the same
+  pattern in `PleadStamp`. Screenshots `docket-stamps*.png`, `docket-stamps-zoom.png`.
+
+## Amendment be: onboarding and paywall polish (2026-10-04)
+
+About bar: the Plead logo with its pixel heart (80 dp, 8 dp above the rail; the bar is 64 dp on the six screens).
+Screen 2: she holds a wallet, he a phone, beside them at desk height (`AboutHeroFrameProps`). Screen 3: eyes closed, the
+judge's own hand pressed to the brow (`AboutPixelArt.browHand`, face and wig visible) and a sweat drop. Oath: card centred between title and button;
+after the strike a seeded burst of gold/burgundy confetti and hearts (`OathCelebration`, same SplitMix64 seed as iOS)
+with the seal, advance 1.25 s after the strike; Reduce Motion: no burst. How Plead Works: no tilt. Court identity: light
+IN COURT card (iOS colours). Court Is Ready: "EXHIBIT A" over a pixel phone on the easel. Paywall: Monthly / Weekly carry
+the logo's pixel heart (`PlanOrnament`); fitting unchanged (360 × 640 3-button 130 % still scrolls the CTA fully clear).
+Welcome logo (Android bug): the cause was `PleadLogo.defaultOpticalOffset` (iOS's −1 % nudge) applied to an asset whose
+ink is already symmetric, plus Compose's trailing letter spacing on the strapline; both removed / compensated. Measured
+wordmark ink margins: 377 / 378 px (Pixel 7), 296 / 296 px (360 × 640, 130 %). Demo flag `AWOathCelebration 0.35`.
+Screenshots: `screenshots/{welcome-logo-centred*,about-3-judge-zoom,about-6-oath-celebration,how-it-works-straight,
+identity-light-card,ready-easel-exhibit,paywall3-plan-hearts*}.png`.
+
 ## Real-device fixes 2026-10-02
 
 First run on the user's phone (moto g(60)s: 432 × 984 dp, **3-button navigation, font size 130%**, Play release build).

@@ -110,7 +110,7 @@ class OnboardingPermissionScreensTests {
     /** iOS: Privacy is always a step, right after Notifications. Android (amendment az): never a step. */
     @Test fun privacyIsAlwaysAStep() {
         val steps = OnboardingStep.activeSteps()
-        assertEquals(11, steps.size)
+        assertEquals(11, OnboardingStep.countedSteps(steps).size)
         assertFalse(steps.contains(OnboardingStep.tracking))
         assertEquals(9, OnboardingStep.tracking.rawValue)
         assertEquals(

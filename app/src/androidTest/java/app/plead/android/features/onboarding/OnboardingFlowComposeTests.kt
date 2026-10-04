@@ -2,15 +2,23 @@
 // amendment y; the summons explainer third, amendment ai), back navigation, and resume after relaunch, driven through
 // the real RootScreen / OnboardingContainer on a demo AppModel built from the same launch flags.
 //
-// Android differences (docs/STATUS.md, wave 3b decisions; CONTRACTS-v2 amendment az): eleven screens ("Step N of
-// 11"), no Privacy & tracking step between Court Notices and Widgets, so the tracking test asserts the step is
-// skipped instead of passing it.
+// Android differences (docs/STATUS.md, wave 3b decisions; CONTRACTS-v2 amendment az): eleven counted screens ("Step N
+// of 11"), no Privacy & tracking step between Court Notices and Widgets, so the tracking test asserts the step is
+// skipped instead of passing it. Amendment bd: the six "About you two" / oath screens follow Welcome (not counted).
 package app.plead.android.features.onboarding
 
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.plead.android.support.Onboarding
 import app.plead.android.support.PleadComposeTestCase
+import app.plead.android.support.answerAbout
 import app.plead.android.support.assertNoPrivacyStep
+import app.plead.android.support.beginOnboarding
+import app.plead.android.support.isOn
+import app.plead.android.support.pressOath
+import app.plead.android.support.startQuestions
+import app.plead.android.support.takeOath
 import app.plead.android.support.onboardingStep
 import app.plead.android.support.passMockTrial
 import app.plead.android.support.passSummonsIntro
@@ -43,7 +51,7 @@ class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
      */
     @Test fun testBackReturnsToPreviousScreen() {
         launch(newUserArguments)
-        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        beginOnboarding()
         passMockTrial()
         passSummonsIntro()
         onboardingStep(Onboarding.howItWorks, tapping = "Continue")
@@ -56,6 +64,16 @@ class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
         waitFor(Onboarding.mockTrial)
         waitFor(Onboarding.mockTrialStart)
         assertFalse("Re-entering the demo kept the finished trial", exists(Onboarding.mockTrialContinue))
+        // Amendment bd: back from the demo is the oath, then the five questions, then Welcome.
+        tap("onboarding.back")
+        waitFor(tag(Onboarding.oath), Onboarding.oath)
+        for ((question, _) in Onboarding.aboutFirstOptions.reversed()) {
+            tap("onboarding.back")
+            waitFor(tag("onboarding.about.$question"), question)
+        }
+        // Amendment bg: then the intro, then Welcome.
+        tap("onboarding.back")
+        waitFor(tag(Onboarding.aboutIntro), Onboarding.aboutIntro)
         tap("onboarding.back")
         waitFor(Onboarding.welcome)
         assertFalse("Welcome offers a back button", existsAndEnabled("onboarding.back"))
@@ -67,7 +85,7 @@ class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
      */
     @Test fun testResumesOnTheMockTrialAfterRelaunch() {
         launch(newUserArguments)
-        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        beginOnboarding()
         tap(Onboarding.mockTrialStart)
 
         launch(newUserArguments + ("AWOnboardResume" to "YES"))
@@ -85,7 +103,7 @@ class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
      */
     @Test fun testSkipDemoShowsTheSummonsExplainerThenHowPleadWorks() {
         launch(newUserArguments)
-        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        beginOnboarding()
         skipMockTrialFromInvitation()
         waitFor(Onboarding.summonsIntro)
         waitFor(Onboarding.summonsHeadline)
@@ -103,7 +121,7 @@ class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
      */
     @Test fun testStartMockTrialThenContinueGoesToSummonsExplainer() {
         launch(newUserArguments)
-        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        beginOnboarding()
         waitFor(Onboarding.mockTrial)
         waitFor("See how a Plead trial works")
         tap(Onboarding.mockTrialStart)
@@ -124,7 +142,7 @@ class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
      */
     @Test fun testMockTrialHelpSheetPausesThenGotItResumesToCaseClosed() {
         launch(newUserArguments)
-        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        beginOnboarding()
         waitFor(Onboarding.mockTrial)
         assertFalse("The help button showed on the intro", exists(Onboarding.mockHelp))
         tap(Onboarding.mockTrialStart)
@@ -147,7 +165,7 @@ class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
     /** Kill the app on Example Cases; `AWOnboardResume YES` relaunches there. */
     @Test fun testResumesOnLastStepAfterRelaunch() {
         launch(newUserArguments)
-        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        beginOnboarding()
         passMockTrial()
         passSummonsIntro()
         onboardingStep(Onboarding.howItWorks, tapping = "Continue")
@@ -196,5 +214,90 @@ class OnboardingFlowComposeTests : PleadComposeTestCase(manualClock = true) {
         waitFor("Together since")
         onboardingStep(Onboarding.partner, tapping = "I'll do this later")
         waitFor(Onboarding.notifications)
+    }
+
+    /**
+     * Amendment bd: six screens between Welcome and the demo, none skippable. No Skip; CONTINUE disabled until an
+     * answer; choose-all toggles; back keeps answers; a short press on the oath does nothing, the 2 s hold advances to
+     * the demo; the court rail is replaced by the six-segment rail.
+     */
+    @Test fun testAboutYouTwoIsNotSkippableAndKeepsAnswers() {
+        launch(newUserArguments)
+        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        // Amendment bg: the intro first: no Skip, no six-segment rail, START QUESTIONS the only way on.
+        waitFor(tag(Onboarding.aboutIntro), Onboarding.aboutIntro)
+        waitFor("Tell the court about you two.")
+        waitFor("5 quick questions")
+        waitFor("1 courtroom oath")
+        assertFalse("A Skip control is offered on the intro", exists("Skip"))
+        assertFalse("The six-segment rail shows on the intro", exists(tag(Onboarding.aboutProgress)))
+        startQuestions()
+        waitFor(tag("onboarding.about.frequency"), "frequency")
+        waitFor("How often do little things turn into arguments?")
+        assertEquals("Question 1 of 6", stateDescription(node(tag(Onboarding.aboutProgress))))
+        assertFalse("A Skip control is offered", exists("Skip"))
+        assertFalse("A Skip control is offered", exists("SKIP"))
+        assertFalse("CONTINUE enabled with nothing chosen", existsAndEnabled(Onboarding.aboutContinue))
+        tap("onboarding.about.frequency.few_times_week")
+        assertTrue(waitUntil { isOn("onboarding.about.frequency.few_times_week") })
+        tap(Onboarding.aboutContinue)
+        waitForGone(tag("onboarding.about.frequency"), "frequency")
+
+        waitFor(tag("onboarding.about.topics"), "topics")
+        assertTrue(waitUntil { stateDescription(node(tag(Onboarding.aboutProgress))) == "Question 2 of 6" })
+        assertFalse(existsAndEnabled(Onboarding.aboutContinue))
+        tap("onboarding.about.topics.chores")
+        tap("onboarding.about.topics.food")
+        tap("onboarding.about.topics.chores")
+        assertTrue(waitUntil { !isOn("onboarding.about.topics.chores") })
+        assertTrue(isOn("onboarding.about.topics.food"))
+        assertTrue(existsAndEnabled(Onboarding.aboutContinue))
+        // Back keeps the first answer.
+        tap("onboarding.back")
+        waitFor(tag("onboarding.about.frequency"), "frequency")
+        assertTrue("Back lost the answer", isOn("onboarding.about.frequency.few_times_week"))
+        assertTrue(existsAndEnabled(Onboarding.aboutContinue))
+        tap(Onboarding.aboutContinue)
+        waitForGone(tag("onboarding.about.frequency"), "frequency")
+        waitFor(tag("onboarding.about.topics"), "topics")
+        assertTrue("Forward again lost the answer", isOn("onboarding.about.topics.food"))
+        tap(Onboarding.aboutContinue)
+        waitForGone(tag("onboarding.about.topics"), "topics")
+        for ((question, option) in Onboarding.aboutFirstOptions.drop(2)) answerAbout(question, option)
+
+        waitFor(tag(Onboarding.oath), Onboarding.oath)
+        waitFor("Do you swear to hear them out?")
+        assertTrue(waitUntil { stateDescription(node(tag(Onboarding.aboutProgress))) == "Question 6 of 6" })
+        pressOath(600)
+        assertFalse("A short press took the oath", waitUntil(2_000) { exists(Onboarding.mockTrial) })
+        assertTrue(exists(tag(Onboarding.oath)))
+        takeOath()
+        waitFor(Onboarding.mockTrial)
+        assertEquals("Step 2 of ${Onboarding.screenCount}", progressLabel())
+    }
+
+    /** Killed on the third question: relaunch resumes there with the earlier answers kept. */
+    @Test fun testAboutYouTwoResumesAfterRelaunch() {
+        launch(newUserArguments)
+        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        startQuestions()
+        for ((question, option) in Onboarding.aboutFirstOptions.take(2)) answerAbout(question, option)
+        waitFor(tag("onboarding.about.outcome"), "outcome")
+        launch(newUserArguments + ("AWOnboardResume" to "YES"))
+        waitFor(tag("onboarding.about.outcome"), "outcome")
+        assertFalse(exists(Onboarding.welcome))
+        tap("onboarding.back")
+        waitFor(tag("onboarding.about.topics"), "topics")
+        assertTrue("Relaunch lost the answer", isOn("onboarding.about.topics.chores"))
+    }
+
+    /** TalkBack / Switch Access: activating the oath button (an accessibility click, no hold) takes the oath. */
+    @Test fun testOathCompletesOnAccessibilityActivation() {
+        launch(newUserArguments + ("AWOnboardStep" to "oath"))
+        waitFor(tag(Onboarding.oath), Onboarding.oath)
+        waitFor(tag(Onboarding.oathHold), Onboarding.oathHold)
+        first(tag(Onboarding.oathHold)).performSemanticsAction(SemanticsActions.OnClick)
+        waitForGone(tag(Onboarding.oath), Onboarding.oath)
+        waitFor(Onboarding.mockTrial)
     }
 }

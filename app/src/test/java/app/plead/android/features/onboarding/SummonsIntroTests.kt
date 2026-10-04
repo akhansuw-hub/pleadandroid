@@ -67,13 +67,14 @@ class SummonsIntroStepTests {
 
     @Test fun orderAndCounts() {
         val steps = OnboardingStep.activeSteps()
-        assertEquals(11, steps.size) // Android: no Privacy & tracking step (iOS 12, amendment ak)
-        assertEquals(listOf(OnboardingStep.welcome, OnboardingStep.mockTrial, OnboardingStep.summonsIntro, OnboardingStep.howItWorks), steps.take(4))
+        // Android: no Privacy & tracking step (iOS 12, amendment ak); amendment bd: the six aren't counted.
+        assertEquals(11, OnboardingStep.countedSteps(steps).size)
+        assertEquals(listOf(OnboardingStep.welcome, OnboardingStep.mockTrial, OnboardingStep.summonsIntro, OnboardingStep.howItWorks), OnboardingStep.countedSteps(steps).take(4))
         assertEquals(OnboardingStep.summonsIntro, OnboardingStep.mockTrial.next(steps))
         assertEquals(OnboardingStep.howItWorks, OnboardingStep.summonsIntro.next(steps))
         assertEquals(OnboardingStep.mockTrial, OnboardingStep.summonsIntro.previous(steps))
         assertEquals(OnboardingStep.summonsIntro, OnboardingStep.howItWorks.previous(steps))
-        assertEquals("3 OF ${steps.size}", OnboardingStep.summonsIntro.positionLabel(steps))
+        assertEquals("3 OF 11", OnboardingStep.summonsIntro.positionLabel(steps))
         assertEquals(1, OnboardingProgressRail.activeIndex(OnboardingStep.summonsIntro, steps))
     }
 

@@ -386,14 +386,22 @@ private fun AvatarPicker(model: OnboardingModel) {
 // MARK: - CourtIdentityPreview
 
 /**
- * The live IN COURT plate: deep wine card, gold "IN COURT", the pixel avatar large at an integer scale on a
- * parchment tile, the name as it will appear and "COURT MEMBER". Bound to the same state as the name field and
+ * The live IN COURT plate (amendment be: no Court Burgundy panel): a paper-white card with a hairline and a soft gold
+ * rule, burgundy "IN COURT", the pixel avatar large at an integer scale on a parchment tile, the name in deep wine as it
+ * will appear (the "YOUR NAME" placeholder in faded cocoa) and "COURT MEMBER" in mahogany. Bound to the same state as the name field and
  * the picker; crossfades on every change. Long names wrap to two lines, then truncate. One TalkBack element.
  */
 object CourtIdentityPreview {
     const val plateTitle = "IN COURT"
     const val role = "COURT MEMBER"
     const val placeholderName = "YOUR NAME"
+
+    // Amendment be: light card, text recoloured to stand out on it.
+    val surface get() = OnboardingPalette.paper                          // #FFFDFC
+    val titleColor get() = OnboardingPalette.burgundy                    // #7C3042
+    val nameColor get() = OnboardingPalette.wine                         // #541F2C
+    val placeholderColor get() = OnboardingPalette.cocoa.copy(alpha = 0.4f)  // #3B2425 @ 40 %
+    val roleColor get() = OnboardingPalette.mahogany                     // #704735
 
     /** The name as the court shows it: trimmed and uppercased; "YOUR NAME" until one is typed. */
     fun displayName(name: String): String {
@@ -428,16 +436,18 @@ fun CourtIdentityPreview(name: String, avatar: Avatar, modifier: Modifier = Modi
     Column(
         modifier
             .fillMaxWidth()
-            .pleadShadow(OnboardingPalette.wine.copy(alpha = 0.18f), radius = T.cardShadow.dp, y = T.cardShadowY.dp, shape = shape)
-            .background(OnboardingPalette.wine, shape)
-            .border(1.dp, OnboardingPalette.gold.copy(alpha = 0.35f), shape)
+            .pleadShadow(OnboardingPalette.cocoa.copy(alpha = 0.10f), radius = T.cardShadow.dp, y = T.cardShadowY.dp, shape = shape)
+            .background(CourtIdentityPreview.surface, shape)
+            .border(1.dp, OnboardingPalette.border, shape)
+            .padding(4.dp)
+            .border(1.dp, OnboardingPalette.gold.copy(alpha = 0.45f), RoundedCornerShape((T.plateRadius - 4).coerceAtLeast(0f).dp))
             .testTag("onboarding.identityPreview")
             .clearAndSetSemantics { contentDescription = CourtIdentityPreview.accessibilityText(name, avatar) }
-            .padding(PleadSpacing.l),
+            .padding(PleadSpacing.l - 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(PleadSpacing.m),
     ) {
-        Text(CourtIdentityPreview.plateTitle, style = PleadType.labelCapsTracked, color = OnboardingPalette.goldLight)
+        Text(CourtIdentityPreview.plateTitle, style = PleadType.labelCapsTracked, color = CourtIdentityPreview.titleColor)
         Box(
             Modifier.size(T.previewTile.dp).background(OnboardingPalette.parchment, RoundedCornerShape(T.tileRadius)),
             contentAlignment = Alignment.Center,
@@ -449,13 +459,13 @@ fun CourtIdentityPreview(name: String, avatar: Avatar, modifier: Modifier = Modi
                 Text(
                     shown,
                     style = T.plateName,
-                    color = OnboardingPalette.cream.copy(alpha = if (CourtIdentityPreview.hasName(name)) 1f else 0.45f),
+                    color = if (CourtIdentityPreview.hasName(name)) CourtIdentityPreview.nameColor else CourtIdentityPreview.placeholderColor,
                     textAlign = TextAlign.Center,
                     maxLines = T.nameLines,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(CourtIdentityPreview.role, style = PleadType.labelCapsTracked, color = OnboardingPalette.gold)
+            Text(CourtIdentityPreview.role, style = PleadType.labelCapsTracked, color = CourtIdentityPreview.roleColor)
         }
     }
 }

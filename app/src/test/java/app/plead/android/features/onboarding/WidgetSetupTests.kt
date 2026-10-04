@@ -41,7 +41,7 @@ class WidgetSetupStepTests {
     /** iOS (amendment at): Tracking → Widgets → Ready, "11 OF 12". Android: Notifications → Widgets → Ready, "10 OF 11". */
     @Test fun widgetsSitsBetweenTrackingAndReady() {
         val all = OnboardingStep.activeSteps()
-        assertEquals(12, OnboardingStep.allCases.size)
+        assertEquals(19, OnboardingStep.allCases.size)
         assertEquals(8, OnboardingStep.widgets.rawValue)
         assertEquals(OnboardingStep.widgets, OnboardingStep.notifications.next(all))
         assertEquals(OnboardingStep.notifications, OnboardingStep.widgets.previous(all))
@@ -184,7 +184,7 @@ class WidgetSetupModelTests {
         for (step in steps) {
             m.go(step)
             m.screenAppeared(step)
-            m.advance()
+            m.advanceAnswering()
         }
         val viewed = log.props(OnboardingEvent.screenViewed).mapNotNull { it["screen_id"] }
         val continued = log.props(OnboardingEvent.continueTapped).mapNotNull { it["screen_id"] }

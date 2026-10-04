@@ -1,15 +1,37 @@
 // PleadUITestCase's onboarding helpers (`Onboarding` keys, `onboardingStep`, `passMockTrial`, `passSummonsIntro`,
 // `walkOnboarding`…) for any PleadComposeTestCase.
 //
-// Android differences (CONTRACTS-v2 amendment az; docs/STATUS.md): eleven screens ("Step N of 11"), no Privacy &
-// tracking step between Court Notices and Widgets (asserted absent where iOS passes it).
+// Android differences (CONTRACTS-v2 amendment az; docs/STATUS.md): eleven counted screens ("Step N of 11"), no Privacy
+// & tracking step between Court Notices and Widgets (asserted absent where iOS passes it). Amendment bd: the six
+// "About you two" / oath screens follow Welcome (`beginOnboarding`) and are not counted.
 package app.plead.android.support
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.test.down
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.up
 import org.junit.Assert.assertTrue
 
 /** `PleadUITestCase.Onboarding`. Headlines are matched as TalkBack reads them (`CourtHeadline.spoken`, one line). */
 object Onboarding {
     const val welcome = "Settle arguments. Let AI judge."
+    /**
+     * Amendment bd: the five questions (screen containers `onboarding.about.<question>`, options
+     * `onboarding.about.<question>.<option id>`), their CONTINUE, and the oath (`onboarding.about.oath`, hold button).
+     */
+    val aboutFirstOptions: List<Pair<String, String>> = listOf(
+        "frequency" to "most_days", "topics" to "chores", "outcome" to "both_insist", "repeats" to "all_the_time", "easier" to "feeling_heard",
+    )
+    /** Amendment bg: the intro before the questions and its START QUESTIONS. */
+    const val aboutIntro = "onboarding.about.intro"
+    const val aboutStart = "onboarding.about.start"
+    const val aboutContinue = "onboarding.about.continue"
+    const val aboutProgress = "onboarding.about.progress"
+    const val oath = "onboarding.about.oath"
+    const val oathHold = "onboarding.oath.hold"
     const val mockTrial = "onboarding.mockTrial"
     const val mockTrialStart = "onboarding.mockTrial.start"
     const val mockTrialSkip = "onboarding.mockTrial.skip"
@@ -48,6 +70,67 @@ fun PleadComposeTestCase.onboardingStep(headline: String, tapping: String) {
     tap(tapping)
     waitForGone(headline)
 }
+
+/** Welcome's BEGIN, the intro's START QUESTIONS (amendment bg), then the six screens (bd), leaving the app on the Mock Trial. */
+fun PleadComposeTestCase.beginOnboarding() {
+    onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+    startQuestions()
+    passAboutYouTwo()
+}
+
+/** Amendment bg: the intro's START QUESTIONS, then gone (the first question follows). */
+fun PleadComposeTestCase.startQuestions() {
+    waitFor(tag(Onboarding.aboutIntro), Onboarding.aboutIntro)
+    tap(Onboarding.aboutStart)
+    waitForGone(tag(Onboarding.aboutIntro), Onboarding.aboutIntro)
+}
+
+/**
+ * Amendment bd: answers each "About you two" question with its first option (CONTINUE is disabled until then), then
+ * holds HOLD TO TAKE THE OATH for the full 2 seconds. Waits until each screen has gone.
+ */
+fun PleadComposeTestCase.passAboutYouTwo() {
+    for ((question, option) in Onboarding.aboutFirstOptions) answerAbout(question, option)
+    takeOath()
+}
+
+/** One question: pick `option`, wait for CONTINUE to enable, continue, wait until the screen has gone. */
+fun PleadComposeTestCase.answerAbout(question: String, option: String) {
+    val screen = "onboarding.about.$question"
+    waitFor(tag(screen), screen)
+    tap("onboarding.about.$question.$option")
+    assertTrue(
+        "CONTINUE stayed disabled after answering $question",
+        waitUntil { existsAndEnabled(Onboarding.aboutContinue) },
+    )
+    tap(Onboarding.aboutContinue)
+    waitForGone(tag(screen), screen)
+}
+
+/** Presses the oath's hold button for [ms] on the Compose clock (a real touch down, the clock moved, then up). */
+fun PleadComposeTestCase.pressOath(ms: Long) {
+    waitFor(tag(Onboarding.oathHold), Onboarding.oathHold)
+    assertTrue("The oath button never became hittable", waitUntil { isHittable(tag(Onboarding.oathHold)) })
+    val hold = first(tag(Onboarding.oathHold))
+    hold.performTouchInput { down(center) }
+    rule.mainClock.advanceTimeBy(ms)
+    // Lift on the root (same input dispatcher): the button may already have left with its page, and a pointer left
+    // down would block every later tap ("a gesture is already in progress").
+    rule.onRoot().performTouchInput { up() }
+    if (manualClock) step(2)
+}
+
+/** The Courtroom Oath: a 2.4 s press on the hold button (the hold needs 2 s), then waits for the Mock Trial. */
+fun PleadComposeTestCase.takeOath() {
+    waitFor(tag(Onboarding.oath), Onboarding.oath)
+    pressOath(2_400)
+    waitForGone(tag(Onboarding.oath), Onboarding.oath)
+}
+
+/** A radio row's `selected`, or a checkbox's toggle state, is on (`XCUIElement.isSelected`). */
+fun PleadComposeTestCase.isOn(key: String): Boolean = nodes(element(key)).firstOrNull()?.let { n ->
+    n.config.getOrNull(SemanticsProperties.Selected) == true || n.config.getOrNull(SemanticsProperties.ToggleableState) == ToggleableState.On
+} ?: false
 
 /** `element("onboarding.progress").label`: "Step N of M". */
 fun PleadComposeTestCase.progressLabel(): String {
@@ -93,7 +176,7 @@ fun PleadComposeTestCase.passSummonsIntro() {
  * iOS passes the Privacy & tracking screen between Court Notices and Widgets; Android has none (amendment az).
  */
 fun PleadComposeTestCase.walkOnboarding(name: String = "Arif") {
-    onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+    beginOnboarding()
     passMockTrial()
     passSummonsIntro()
     onboardingStep(Onboarding.howItWorks, tapping = "Continue")

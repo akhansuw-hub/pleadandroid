@@ -435,6 +435,8 @@ fun PleadStamp(text: String, delay: Double, modifier: Modifier = Modifier) {
                 val v = landed.value
                 val start = OnboardingMotionTokens.revealStartOpacity.toFloat()
                 alpha = start + (0.9f - start) * v
+                // No offscreen buffer (it would be the unrotated bounds and cut the tilted border; see CaseStatusStamp).
+                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
                 val s = if (reduceMotion) 1f else OnboardingMotionTokens.stampStartScale + (1f - OnboardingMotionTokens.stampStartScale) * v
                 scaleX = s
                 scaleY = s
@@ -528,7 +530,7 @@ fun <S> AnimatedContentTransitionScope<S>.onboardingPage(forward: Boolean, reduc
  */
 object OnboardingProgressRail {
     /** One segment per active screen after Welcome. */
-    fun segmentCount(steps: List<OnboardingStep> = OnboardingStep.activeSteps()): Int = steps.size - 1
+    fun segmentCount(steps: List<OnboardingStep> = OnboardingStep.activeSteps()): Int = OnboardingStep.countedSteps(steps).size - 1
     val segmentCount: Int get() = segmentCount()
 
     /** Welcome has no rail. */
@@ -553,7 +555,7 @@ fun OnboardingProgressRail(
     Row(
         modifier.height(6.dp).semantics(mergeDescendants = true) {
             contentDescription = "Setup progress"
-            stateDescription = "Step ${step.position(steps)} of ${steps.size}"
+            stateDescription = "Step ${step.position(steps)} of ${OnboardingStep.countedSteps(steps).size}"
         },
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -601,6 +603,58 @@ object OnboardingHaptics {
     fun fire(view: android.view.View, moment: Moment) {
         view.performHapticFeedback(constant(moment))
     }
+
+    /** Amendment bf: the page-turn tap's primitive scale (iOS: a soft impact at 0.75 intensity). */
+    const val pageTurnIntensity: Float = 0.75f
+    /** The CLICK primitive at this scale is the closest Android match to iOS's soft impact at 0.75. */
+    const val forwardScale: Float = 0.45f
+
+    /**
+     * Amendment bf: one soft tap as onboarding moves forward ("a vibration that isn't a vibration"). A low-scale CLICK
+     * composition primitive where the device supports it (API 30+), played as touch feedback so the system's touch-
+     * feedback setting applies (API 33+ by its usage; API 30–32 checked here); otherwise the standard view haptic
+     * (KEYBOARD_TAP), which the view itself gates on that setting. Never a long vibration.
+     */
+    fun pageTurn(view: android.view.View?) {
+        if (view != null && !view.isHapticFeedbackEnabled) return
+        val context = view?.context ?: app.plead.android.app.PleadApplication.contextOrNull ?: return
+        val vibrator = forwardVibrator(context)
+        if (vibrator != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R && pageTurnComposition(vibrator, context)) return
+        view?.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    }
+
+    /** The CLICK primitive at `forwardScale`, as touch feedback; false when the device can't play primitives. */
+    @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.R)
+    private fun pageTurnComposition(vibrator: android.os.Vibrator, context: android.content.Context): Boolean {
+        if (!vibrator.areAllPrimitivesSupported(android.os.VibrationEffect.Composition.PRIMITIVE_CLICK)) return false
+        val effect = android.os.VibrationEffect.startComposition()
+            .addPrimitive(android.os.VibrationEffect.Composition.PRIMITIVE_CLICK, forwardScale)
+            .compose()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            touchVibrate(vibrator, effect)
+            return true
+        }
+        val touchFeedbackOn = runCatching {
+            android.provider.Settings.System.getInt(context.contentResolver, android.provider.Settings.System.HAPTIC_FEEDBACK_ENABLED, 1) != 0
+        }.getOrDefault(true)
+        if (touchFeedbackOn) runCatching { vibrator.vibrate(effect) }
+        return true
+    }
+
+    /** Played with the touch usage, so the system's touch-feedback setting applies. */
+    @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.TIRAMISU)
+    private fun touchVibrate(vibrator: android.os.Vibrator, effect: android.os.VibrationEffect) {
+        runCatching { vibrator.vibrate(effect, android.os.VibrationAttributes.createForUsage(android.os.VibrationAttributes.USAGE_TOUCH)) }
+    }
+
+    private fun forwardVibrator(context: android.content.Context): android.os.Vibrator? = runCatching {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            (context.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+        }
+    }.getOrNull()?.takeIf { it.hasVibrator() }
 }
 
 /** Declarative light haptic for `moment` whenever `trigger` changes (not on first composition), like `sensoryFeedback`. */

@@ -95,6 +95,12 @@ import app.plead.android.designsystem.SFSymbol
 import app.plead.android.designsystem.TextStyleKind
 import app.plead.android.designsystem.pleadShadow
 import app.plead.android.features.paywall.PaywallPalette
+import app.plead.android.features.onboarding.about.AboutIntroScreen
+import app.plead.android.features.onboarding.about.AboutQuestion
+import app.plead.android.features.onboarding.about.AboutQuestionScreen
+import app.plead.android.features.onboarding.about.AboutProgressRail
+import app.plead.android.designsystem.PleadLogo
+import app.plead.android.features.onboarding.about.CourtroomOathView
 
 object OnboardingPalette {
     // `PaywallPalette` (Features/Paywall/PaywallPalette.swift) values, inlined so onboarding does not depend on wave 3c.
@@ -424,6 +430,19 @@ object OnboardingContainer {
     /** Top-bar height reserved on every screen (under the status bar). */
     val chromeHeight: Dp = 44.dp
 
+    /** Amendment bd: the six "About you two" screens carry the PLEAD wordmark over their six-segment rail. */
+    val aboutChromeHeight: Dp = 64.dp
+    /** Amendment be: the logo's width in that bar. */
+    val aboutLogoWidth: Dp = 80.dp
+    const val aboutLogoTag = "onboarding.about.logo"
+    /** Amendment bg: the intro shows the logo without the rail. */
+    val aboutIntroChromeHeight: Dp = 50.dp
+    fun chromeHeight(step: OnboardingStep): Dp = when {
+        step.aboutIndex != null -> aboutChromeHeight
+        step == OnboardingStep.aboutIntro -> aboutIntroChromeHeight
+        else -> chromeHeight
+    }
+
     /**
      * Screens that draw edge to edge under the status bar and the top bar (amendment ai: the summons explainer's
      * courtroom hero). They get no top padding and are not clipped to the safe area; they keep their own text
@@ -435,7 +454,10 @@ object OnboardingContainer {
     @Suppress("UNUSED_PARAMETER")
     fun showsTopBar(step: OnboardingStep): Boolean = true
 
-    /** The rail's 0-based dot for `step` among `steps` (one dot per active screen, Welcome first). */
+    /**
+     * The rail's 0-based dot for `step` among `steps` (one dot per counted screen, Welcome first; amendment bd: the six
+     * "About you two" steps are not counted and show `AboutProgressRail` instead).
+     */
     fun railIndex(step: OnboardingStep, steps: List<OnboardingStep> = OnboardingStep.activeSteps()): Int = step.position(steps) - 1
 
     val pageDuration: Double = OnboardingMotionTokens.screenTransition
@@ -476,6 +498,13 @@ fun OnboardingContainer(app: AppModel, modifier: Modifier = Modifier) {
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
+    // Amendment bf: the model's page-turn haptic plays through this view (so the view's haptic setting applies).
+    val view = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(view) {
+        model.pageTurnHaptic = { OnboardingHaptics.pageTurn(view) }
+        onDispose { model.pageTurnHaptic = { OnboardingHaptics.pageTurn(null) } }
+    }
+    // System back = the top-bar chevron on every screen (amendment bd's six included: answers are kept).
     BackHandler(enabled = model.canGoBack) { model.back() }
 
     Box(modifier.fillMaxSize()) {
@@ -491,7 +520,7 @@ fun OnboardingContainer(app: AppModel, modifier: Modifier = Modifier) {
                 Box(
                     Modifier.fillMaxSize().then(
                         if (OnboardingContainer.showsTopBar(page) && !fullBleed) {
-                            Modifier.statusBarsPadding().padding(top = OnboardingContainer.chromeHeight).clipToBounds()
+                            Modifier.statusBarsPadding().padding(top = OnboardingContainer.chromeHeight(page)).clipToBounds()
                         } else {
                             Modifier
                         },
@@ -509,6 +538,13 @@ fun OnboardingContainer(app: AppModel, modifier: Modifier = Modifier) {
 private fun OnboardingScreen(app: AppModel, model: OnboardingModel, step: OnboardingStep, askForRating: () -> Unit) {
     when (step) {
         OnboardingStep.welcome -> OnboardingWelcomeView(app)
+        // Amendment bd: five questions and the oath between Welcome and the demo; not skippable (no Skip, CONTINUE
+        // disabled until answered, the oath needs its 2-second hold).
+        OnboardingStep.aboutFrequency, OnboardingStep.aboutTopics, OnboardingStep.aboutOutcome,
+        OnboardingStep.aboutRepeat, OnboardingStep.aboutEasier -> AboutQuestion.forStep(step)?.let { AboutQuestionScreen(app, it) }
+        OnboardingStep.oath -> CourtroomOathView(app)
+        // Amendment bg: the intro that opens the questions (START QUESTIONS is the only way forward).
+        OnboardingStep.aboutIntro -> AboutIntroScreen(app)
         // Amendments y + ab: the scene brings its own controls (the invitation's START MOCK TRIAL, tap to advance,
         // SKIP DEMO throughout, CONTINUE after the verdict); the container only keeps the top bar. Skip skips the
         // demo, not onboarding: both exits land on the summons explainer (amendment ai), whose back returns here.
@@ -547,7 +583,7 @@ private fun OnboardingTopBar(model: OnboardingModel, step: OnboardingStep, modif
     val onDark = OnboardingContainer.isFullBleed(step)
     val canGoBack = OnboardingFlow.canGoBack(step, model.activeSteps)
     Row(
-        modifier.fillMaxWidth().height(OnboardingContainer.chromeHeight).padding(horizontal = 4.dp),
+        modifier.fillMaxWidth().height(OnboardingContainer.chromeHeight(step)).padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -571,12 +607,37 @@ private fun OnboardingTopBar(model: OnboardingModel, step: OnboardingStep, modif
                 modifier = Modifier.size(22.dp),
             )
         }
-        CourtProgressRail(
-            index = OnboardingContainer.railIndex(step, model.activeSteps),
-            count = model.activeSteps.size,
-            onDark = onDark,
-            modifier = Modifier.weight(1f).padding(horizontal = PleadSpacing.s),
-        )
+        val about = step.aboutIndex
+        if (step == OnboardingStep.aboutIntro) {
+            // Amendment bg: logo only; the rail starts on the first question.
+            Box(Modifier.weight(1f).padding(horizontal = PleadSpacing.s), contentAlignment = Alignment.Center) {
+                PleadLogo(
+                    Modifier.clearAndSetSemantics { }.testTag(OnboardingContainer.aboutLogoTag),
+                    width = OnboardingContainer.aboutLogoWidth,
+                )
+            }
+        } else if (about != null) {
+            // Amendment bd/be: the Plead logo (wordmark + pixel heart, no tagline) over the six-segment rail (the court
+            // rail keeps counting the other screens).
+            Column(
+                Modifier.weight(1f).padding(horizontal = PleadSpacing.s),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PleadLogo(
+                    Modifier.clearAndSetSemantics { }.testTag(OnboardingContainer.aboutLogoTag),
+                    width = OnboardingContainer.aboutLogoWidth,
+                )
+                AboutProgressRail(index = about)
+            }
+        } else {
+            CourtProgressRail(
+                index = OnboardingContainer.railIndex(step, model.activeSteps),
+                count = OnboardingStep.countedSteps(model.activeSteps).size,
+                onDark = onDark,
+                modifier = Modifier.weight(1f).padding(horizontal = PleadSpacing.s),
+            )
+        }
         // Mirror the chevron so the bar is optically centred.
         Spacer(Modifier.size(44.dp))
     }

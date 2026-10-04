@@ -35,10 +35,13 @@ class OnboardingFlowTests {
      * the Mock Trial Demo is shown second (amendment y), the summons explainer third (amendment ai).
      */
     @Test fun twelveScreensInTheBriefsOrder() {
-        assertEquals(12, S.allCases.size)
+        // Amendment bd: the six "About you two" steps follow Welcome (eighteen in all; eleven still counted on Android,
+        // twelve on iOS).
+        assertEquals(19, S.allCases.size)
+        assertEquals(11, S.countedSteps().size)
         assertEquals(S.displayOrder, S.allCases)
         assertEquals(
-            listOf("welcome", "mock_trial", "summons_intro", "how_it_works", "ai_court", "examples", "identity", "partner", "notifications", "tracking", "widgets", "ready"),
+            listOf("welcome", "about_intro", "about_frequency", "about_topics", "about_outcome", "about_repeat", "about_easier", "oath", "mock_trial", "summons_intro", "how_it_works", "ai_court", "examples", "identity", "partner", "notifications", "tracking", "widgets", "ready"),
             S.allCases.map { it.screenId },
         )
         assertEquals(9, S.tracking.rawValue)
@@ -49,7 +52,7 @@ class OnboardingFlowTests {
     @Test fun rawValuesAreStable() {
         assertEquals(11, S.mockTrial.rawValue)
         assertEquals(12, S.summonsIntro.rawValue)
-        assertEquals((1..12).toList(), S.allCases.map { it.rawValue }.sorted())
+        assertEquals((1..19).toList(), S.allCases.map { it.rawValue }.sorted())
         val original = listOf(S.welcome, S.howItWorks, S.aiCourt, S.examples, S.identity, S.partner, S.notifications, S.widgets, S.tracking, S.ready)
         assertEquals((1..10).toList(), original.map { it.rawValue })
         assertEquals(S.mockTrial, S.fromRaw(11))
@@ -65,9 +68,11 @@ class OnboardingFlowTests {
         assertTrue(S.summonsIntro before S.howItWorks)
         assertTrue(S.mockTrial before S.ready)
         assertEquals(S.displayOrder, S.allCases.sortedBy { it.displayIndex })
-        assertEquals(S.mockTrial, S.welcome.next())
+        assertEquals(S.aboutIntro, S.welcome.next())
+        assertEquals(S.aboutFrequency, S.aboutIntro.next())
+        assertEquals(S.mockTrial, S.oath.next())
         assertEquals(S.summonsIntro, S.mockTrial.next())
-        assertEquals(S.welcome, S.mockTrial.previous())
+        assertEquals(S.oath, S.mockTrial.previous())
         assertEquals(S.mockTrial, S.summonsIntro.previous())
         assertEquals(S.summonsIntro, S.howItWorks.previous())
         assertEquals("mock_trial", S.mockTrial.screenId)
@@ -82,7 +87,8 @@ class OnboardingFlowTests {
      */
     @Test fun privacyIsAlwaysShown() {
         assertTrue(S.skipsTracking)
-        assertEquals(11, S.activeSteps().size)
+        assertEquals(18, S.activeSteps().size)
+        assertEquals(11, S.countedSteps().size)
         assertFalse(S.activeSteps().contains(S.tracking))
         assertEquals(S.widgets, S.notifications.next())
         assertEquals(S.widgets, S.tracking.next())
@@ -100,10 +106,14 @@ class OnboardingFlowTests {
     @Test fun activeStepsInTheBriefsOrder() {
         val steps = S.activeSteps()
         // Android: Notifications → Widgets → Court Is Ready (iOS puts Privacy & tracking between the first two).
-        val expected = listOf(S.welcome, S.mockTrial, S.summonsIntro, S.howItWorks, S.aiCourt, S.examples, S.identity, S.partner, S.notifications, S.widgets, S.ready)
+        val expected = listOf(
+            S.welcome, S.aboutIntro, S.aboutFrequency, S.aboutTopics, S.aboutOutcome, S.aboutRepeat, S.aboutEasier, S.oath,
+            S.mockTrial, S.summonsIntro, S.howItWorks, S.aiCourt, S.examples, S.identity, S.partner, S.notifications, S.widgets, S.ready,
+        )
         assertEquals(expected, steps)
-        assertEquals(11, steps.size)
-        assertEquals(S.mockTrial, S.welcome.next(steps))
+        assertEquals(18, steps.size)
+        assertEquals(S.aboutIntro, S.welcome.next(steps))
+        assertEquals(S.mockTrial, S.oath.next(steps))
         assertEquals(S.summonsIntro, S.mockTrial.next(steps))
         assertEquals(S.howItWorks, S.summonsIntro.next(steps))
         assertEquals(S.summonsIntro, S.howItWorks.previous(steps))
@@ -121,7 +131,7 @@ class OnboardingFlowTests {
 
     @Test fun welcomeFooterCountsTheActiveSteps() {
         val steps = S.activeSteps()
-        val count = steps.size
+        val count = S.countedSteps(steps).size
         assertEquals("1 OF $count", S.welcome.positionLabel(steps))
         assertEquals("1 OF 11", S.welcome.positionLabel(steps))
         assertEquals("2 OF 11", S.mockTrial.positionLabel(steps))
@@ -243,6 +253,8 @@ class OnboardingModelTests {
         val m = OnboardingModel(d)
         assertEquals(S.welcome, m.step)
         m.advance()
+        assertEquals(S.aboutIntro, m.step)
+        m.passAboutYouTwo()
         assertEquals(S.mockTrial, m.step)
         m.advance()
         assertEquals(S.summonsIntro, m.step)
@@ -258,7 +270,7 @@ class OnboardingModelTests {
     /** iOS (amendment at): Notifications → Privacy & tracking → Widgets. Android: Notifications → Widgets → Ready. */
     @Test fun notificationsAdvancesToPrivacyThenWidgets() {
         val m = OnboardingModel(freshDefaults())
-        assertEquals(11, m.activeSteps.size)
+        assertEquals(18, m.activeSteps.size)
         m.go(S.notifications)
         assertEquals("9 OF 11", m.positionLabel)
         assertFalse(m.trackingSeen)
@@ -277,7 +289,7 @@ class OnboardingModelTests {
         m.go(S.welcome)
         val visited = mutableListOf(m.step)
         while (m.step != S.ready) {
-            m.advance()
+            m.advanceAnswering()
             visited += m.step
         }
         assertEquals(m.activeSteps, visited)
@@ -428,6 +440,9 @@ class OnboardingMockTrialTests {
         val n = 11 // iOS: 12
         assertEquals("1 OF $n", m.positionLabel)
         m.advance()
+        // Amendment bd: the six are not counted.
+        assertEquals("2 OF $n", m.positionLabel)
+        m.passAboutYouTwo()
         assertEquals(S.mockTrial, m.step)
         assertEquals("2 OF $n", m.positionLabel)
         m.completeMockTrial()
@@ -441,6 +456,7 @@ class OnboardingMockTrialTests {
     @Test fun welcomeLeadsToTheDemoAndBackReturnsToIt() {
         val (m, _) = model()
         m.advance()
+        m.passAboutYouTwo()
         assertEquals(S.mockTrial, m.step)
         assertTrue(m.canGoBack)
         m.completeMockTrial()
@@ -448,6 +464,15 @@ class OnboardingMockTrialTests {
         m.back()
         assertEquals(S.mockTrial, m.step)
         assertEquals(OnboardingModel.Direction.backward, m.direction)
+        // Amendment bd: back from the demo is the oath, then the questions, then Welcome.
+        m.back()
+        assertEquals(S.oath, m.step)
+        repeat(5) { m.back() }
+        assertEquals(S.aboutFrequency, m.step)
+        m.back()
+        assertEquals(S.aboutIntro, m.step) // amendment bg
+        m.back()
+        assertEquals(S.welcome, m.step)
         m.back()
         assertEquals(S.welcome, m.step)
     }
@@ -549,6 +574,7 @@ class OnboardingMockTrialTests {
         val d = freshDefaults()
         val (m, _) = model(d)
         m.advance()
+        m.passAboutYouTwo()
         m.mockTrialAppeared()
         m.mockTrialAdvanced(MockTrialBeat.defendantOpening)
         assertEquals(11, d.integer(OnboardingModel.Key.step.key(null)))

@@ -12,6 +12,7 @@ import app.plead.android.support.PleadComposeTestCase
 import app.plead.android.support.assertNoPrivacyStep
 import app.plead.android.support.onboardingStep
 import app.plead.android.support.passSummonsIntro
+import app.plead.android.support.beginOnboarding
 import app.plead.android.support.skipMockTrialFromInvitation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -27,7 +28,7 @@ class PartnerCodeComposeTests : PleadComposeTestCase(manualClock = true) {
      */
     @Test fun testEnterCodeOnPartnerStepEndsOnPartnerPaid() {
         launch(newUserArguments + ("AWDemoJoin" to "paid"))
-        onboardingStep(Onboarding.welcome, tapping = "onboarding.begin")
+        beginOnboarding()
         skipMockTrialFromInvitation()
         passSummonsIntro()
         onboardingStep(Onboarding.howItWorks, tapping = "Continue")

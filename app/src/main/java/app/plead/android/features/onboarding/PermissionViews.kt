@@ -652,7 +652,8 @@ private fun allow(app: AppModel, scope: CoroutineScope, view: View, requesting: 
         Analytics.track("notification_permission_result", mapOf("status" to status.rawValue))
         if (status.isAllowed) OnboardingHaptics.fire(view, OnboardingHaptics.Moment.notificationsEnabled)
         requesting.value = false
-        app.onboarding.advance()
+        // Amendment bf: the enabled haptic already marks this step; no page-turn haptic on top.
+        app.onboardingModel.advance(haptic = !status.isAllowed)
     }
 }
 

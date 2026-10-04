@@ -31,7 +31,7 @@ val DemoHarness.sampleDrafts: List<DraftExhibit>
     }
 
 /**
- * `AWOnboardStep n|screen_id` as the persisted `OnboardingStep` raw value (1…12; e.g. 11 or `mock_trial` for the
+ * `AWOnboardStep n|screen_id` as the persisted `OnboardingStep` raw value (1…19; e.g. 11 or `mock_trial` for the
  * Mock Trial Demo, 12 or `summons_intro` for the summons explainer), if given.
  */
 val DemoHarness.onboardStep: Int?

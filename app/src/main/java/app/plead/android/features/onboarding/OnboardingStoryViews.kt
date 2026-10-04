@@ -94,7 +94,7 @@ object OnboardingWelcomeView {
     /** "STEP 1 · TAKES LESS THAN A MINUTE". */
     val footnote: String get() = "STEP ${OnboardingStep.welcome.position()} · TAKES LESS THAN A MINUTE"
     val footnoteSpoken: String
-        get() = "Step ${OnboardingStep.welcome.position()} of ${OnboardingStep.activeSteps().size}. Takes less than a minute."
+        get() = "Step ${OnboardingStep.welcome.position()} of ${OnboardingStep.countedSteps().size}. Takes less than a minute."
 }
 
 @Composable
@@ -171,7 +171,7 @@ fun CourtArches(center: Offset, radius: Dp, modifier: Modifier = Modifier, rings
 
 /**
  * Amendment ak / brief image2: the product loop as three case folders stacked on the desk, each with its own
- * icon and accent, very slightly overlapping and tilted (≤ 1.5°, none under Reduce Motion). Eyebrow → headline →
+ * icon and accent, very slightly overlapping, straight (amendment be: no tilt). Eyebrow → headline →
  * copy, then the folders rise onto the desk one by one with a soft spring, then the CTA. Nothing loops.
  */
 object HowPleadWorksView {
@@ -187,11 +187,11 @@ object HowPleadWorksView {
 
     data class Look(val icon: CourtKitIcon, val accent: Color, val tilt: Double)
 
-    /** Icon, accent and tilt per folder. */
+    /** Icon, accent and tilt per folder. Amendment be: the cards are straight (no tilt on the cards, tabs or rules). */
     val looks: List<Look> = listOf(
-        Look(CourtKitIcon.system("doc.text.fill"), OnboardingPalette.burgundy, -1.0),
-        Look(CourtKitIcon.system("bubble.left.and.bubble.right.fill"), OnboardingPalette.rose, 0.8),
-        Look(CourtKitIcon.scales, OnboardingPalette.gold, -0.5),
+        Look(CourtKitIcon.system("doc.text.fill"), OnboardingPalette.burgundy, 0.0),
+        Look(CourtKitIcon.system("bubble.left.and.bubble.right.fill"), OnboardingPalette.rose, 0.0),
+        Look(CourtKitIcon.scales, OnboardingPalette.gold, 0.0),
     )
 
     /** Layers: eyebrow 0 · headline 1 · copy 2 · folders 3… · CTA last. */

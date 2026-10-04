@@ -103,7 +103,7 @@ class OnboardingMotionTests {
     }
 
     @Test fun progressRailSegments() {
-        assertEquals(OnboardingStep.activeSteps().size - 1, OnboardingProgressRail.segmentCount)
+        assertEquals(OnboardingStep.countedSteps().size - 1, OnboardingProgressRail.segmentCount)
         assertNull(OnboardingProgressRail.activeIndex(OnboardingStep.welcome))
         // Amendment y + ai: the Mock Trial Demo is the first railed screen, the summons explainer the second.
         assertEquals(0, OnboardingProgressRail.activeIndex(OnboardingStep.mockTrial))

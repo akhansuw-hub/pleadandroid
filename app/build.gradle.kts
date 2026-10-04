@@ -42,7 +42,7 @@ android {
         applicationId = "app.plead.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = projectSetting("CURRENT_PROJECT_VERSION", "9").toInt()
+        versionCode = projectSetting("CURRENT_PROJECT_VERSION", "10").toInt()
         versionName = projectSetting("MARKETING_VERSION", "1.0.0")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

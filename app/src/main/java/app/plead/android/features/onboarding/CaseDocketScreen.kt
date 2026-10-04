@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
@@ -350,6 +351,11 @@ fun CaseStatusStamp(status: CasePreview.Status, modifier: Modifier = Modifier, d
                 val v = landed.value
                 val start = OnboardingMotionTokens.revealStartOpacity.toFloat()
                 alpha = (start + (0.92f - start) * v).coerceIn(0f, 1f)
+                // The stamp rests at 92 % opacity: with the default strategy that renders this layer offscreen, into a
+                // buffer the size of its unrotated bounds, and the −6° border's corners and edges, which reach outside
+                // those bounds, were cut off (the "box isn't full" bug). Modulating the alpha per draw call needs no
+                // offscreen buffer, so the rotated outline stays a closed box at rest and through the pop-in.
+                compositingStrategy = CompositingStrategy.ModulateAlpha
                 val s = if (reduceMotion) 1f else T.stampStartScale + (1f - T.stampStartScale) * v
                 scaleX = s
                 scaleY = s

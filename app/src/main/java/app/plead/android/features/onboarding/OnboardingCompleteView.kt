@@ -281,6 +281,7 @@ internal fun ReadyCourtroom(
                 .requiredSize(art.width.dp, art.height.dp),
         ) {
             CourtroomBackground(art, Modifier.courtLayer(0, style = CourtLayerStyle.fade))
+            ReadyEaselExhibit(z.rect(CourtroomZones.easel), Modifier.courtLayer(0, style = CourtLayerStyle.fade, delay = Ready.judgeEnter))
             val f = z.judgeFrame
             Box(Modifier.offset(f.left.dp, f.top.dp).size(f.width.dp, f.height.dp).courtLayer(0, delay = Ready.judgeEnter)) {
                 JudgeSprite(JudgePersona.wigsworth, cell = z.judgeCell)
@@ -382,3 +383,38 @@ private fun ReadyGavel(zones: CourtroomZones, frame: GavelFrame) {
     }
 }
 
+/**
+ * Amendment be: the easel board reads "EXHIBIT A" above a small pixel phone (the "About you two" phone icon grid),
+ * sized from the painted board: text 11 pt × (board height / 80), bold serif, 1.2 pt tracking, Court Burgundy; the
+ * phone 36 pt × the same scale, 4 pt × scale below the text. Fixed size (the board does not grow with the font).
+ */
+object ReadyEaselExhibit {
+    const val label = "EXHIBIT A"
+    fun scale(boardHeight: Float): Float = maxOf(boardHeight / 80f, 0.6f)
+}
+
+@Composable
+internal fun ReadyEaselExhibit(board: androidx.compose.ui.geometry.Rect, modifier: Modifier = Modifier) {
+    val s = ReadyEaselExhibit.scale(board.height)
+    Box(
+        modifier
+            .offset((board.center.x - board.width * 0.45f).dp, (board.center.y - board.height * 0.45f).dp)
+            .size((board.width * 0.9f).dp, (board.height * 0.9f).dp)
+            .clearAndSetSemantics { }
+            .testTag("onboarding.ready.easelExhibit"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
+            Text(
+                ReadyEaselExhibit.label,
+                style = SummonsEaselCard.serif(11 * s).copy(fontSize = app.plead.android.designsystem.fixedSp(11 * s), letterSpacing = app.plead.android.designsystem.fixedSp(1.2f * s)),
+                color = OnboardingPalette.burgundy,
+                maxLines = 1,
+                softWrap = false,
+            )
+            app.plead.android.features.onboarding.about.AboutOptionIconView(
+                app.plead.android.features.onboarding.about.AboutOptionIcon.phone, size = (36 * s).dp,
+            )
+        }
+    }
+}

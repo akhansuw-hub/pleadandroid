@@ -109,13 +109,14 @@ class ShellOnboarding(private val defaults: UserDefaults) : OnboardingHost {
         const val ready = 10
         const val summonsIntro = 12
 
-        /** `OnboardingStep.displayOrder` as raw values (amendments y, ai, at). */
-        val displayOrder = listOf(1, 11, 12, 2, 3, 4, 5, 6, 7, 9, 8, 10)
+        /** `OnboardingStep.displayOrder` as raw values (amendments y, ai, at; bd/bg: 19 then 13–18 after Welcome). */
+        val displayOrder = listOf(1, 19, 13, 14, 15, 16, 17, 18, 11, 12, 2, 3, 4, 5, 6, 7, 9, 8, 10)
 
         /** `OnboardingStep.screenId` by raw value (for `AWOnboardStep <screen_id>`). */
         val screenIds = mapOf(
             1 to "welcome", 11 to "mock_trial", 12 to "summons_intro", 2 to "how_it_works", 3 to "ai_court", 4 to "examples",
             5 to "identity", 6 to "partner", 7 to "notifications", 9 to "tracking", 8 to "widgets", 10 to "ready",
+            13 to "about_frequency", 14 to "about_topics", 15 to "about_outcome", 16 to "about_repeat", 17 to "about_easier", 18 to "oath", 19 to "about_intro",
         )
 
         fun displayIndex(raw: Int): Int = displayOrder.indexOf(raw).let { if (it < 0) displayOrder.size else it }
@@ -123,6 +124,7 @@ class ShellOnboarding(private val defaults: UserDefaults) : OnboardingHost {
         private val keys = listOf(
             "step", "name", "avatar", "partnerName", "togetherSince", "completed", "seenWidgetEducation", "widgetEducationSkipped",
             "widgetSetupComplete", "configuredPleadWidget", "liveActivitiesEnabled", "trackingSeen",
+            "aboutFrequency", "aboutTopics", "aboutOutcome", "aboutRepeat", "aboutEasier", "oathTaken",
         )
 
         /** `OnboardingModel.Key.name(scope)`: `onboarding.<scope or device>.<key>`. */

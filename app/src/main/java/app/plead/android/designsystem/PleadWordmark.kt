@@ -84,7 +84,13 @@ object PleadLogo {
 
     const val straplineText = "A HAPPIER KIND OF DEBATE"
     const val naturalWidth: Float = 220f
-    const val defaultOpticalOffset: Float = -0.01f
+    /**
+     * iOS nudges the mark 1 % of its width left. Android (amendments bb, be): 0. The wordmark asset's ink is exactly
+     * symmetric in its canvas (30 px clear on both sides of the @3x art), so any nudge shows as an off-centre logo on
+     * Welcome; the user saw it on the Android build. The cold-open hand-off uses the same default, so it still lands
+     * on the identical frame.
+     */
+    const val defaultOpticalOffset: Float = 0f
 
     /** The iOS asset name (Swift `assetName(_:)`). */
     fun assetName(variant: Variant): String = when (variant) {
@@ -254,8 +260,10 @@ fun PleadLogo(
         layout(totalWidth, max(totalHeight, 0)) {
             mark.placeRelative((totalWidth - mark.width) / 2, 0)
             if (text != null) {
-                // `.frame(height: size * 1.2)`: the text centred in its line box.
-                text.placeRelative((totalWidth - text.width) / 2, textTop + (textBlock - text.height) / 2)
+                // `.frame(height: size * 1.2)`: the text centred in its line box. Compose adds the letter spacing after the
+                // last glyph too, so the ink sits half a spacing left of the box's centre: moved back (amendment be).
+                val trailing = (w * 0.012f / 2f).dp.roundToPx()
+                text.placeRelative((totalWidth - text.width) / 2 + trailing, textTop + (textBlock - text.height) / 2)
             }
         }
     }

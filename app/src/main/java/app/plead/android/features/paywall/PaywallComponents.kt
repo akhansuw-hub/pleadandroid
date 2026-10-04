@@ -53,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -496,12 +497,7 @@ fun SubscriptionOption(
                 )
             }
         }
-        val ornament = when (plan) {
-            PurchasesService.Plan.annual -> PaywallSprites.scales
-            PurchasesService.Plan.monthly -> null
-            PurchasesService.Plan.weekly -> null
-        }
-        if (ornament != null) PlanOrnament(ornament)
+        PlanOrnament(PlanOrnament.ornament(plan))
     }
 }
 
@@ -570,11 +566,36 @@ private fun BestValuePill(modifier: Modifier = Modifier) {
     }
 }
 
-/** Small pixel ornament on the right of a plan card (scales / calendar) with two sparkles. */
+/**
+ * Small pixel ornament on the right of a plan card with two sparkles: the scales (Annual) or the Plead logo's pixel
+ * heart (Monthly, Weekly; amendment be), both in the same 44 × 38 dp slot. The heart is the logo grid
+ * (`PleadPixelArt.heart`, 7 × 6) at 4 dp cells (28 × 24 dp), centred in the slot.
+ */
+object PlanOrnament {
+    enum class Kind { scales, logoHeart }
+
+    /** Trailing illustration: Annual the scales; Monthly and Weekly the pixel heart from the Plead logo (amendment be). */
+    fun ornament(plan: PurchasesService.Plan): Kind = if (plan == PurchasesService.Plan.annual) Kind.scales else Kind.logoHeart
+
+    const val heartWidth = 28f
+    const val heartHeight = 24f
+}
+
 @Composable
-private fun PlanOrnament(sprite: PixelSprite) {
-    Box(Modifier.padding(end = 6.dp).size(44.dp, 38.dp)) {
-        PixelGlyph(sprite, Modifier.size(44.dp, 38.dp))
+internal fun PlanOrnament(kind: PlanOrnament.Kind) {
+    Box(Modifier.padding(end = 6.dp).size(44.dp, 38.dp).testTag("paywall.planOrnament.${kind.name}")) {
+        when (kind) {
+            PlanOrnament.Kind.scales -> PixelGlyph(PaywallSprites.scales, Modifier.size(44.dp, 38.dp))
+            PlanOrnament.Kind.logoHeart -> app.plead.android.designsystem.PixelGrid(
+                rows = app.plead.android.designsystem.PleadPixelArt.heart,
+                colors = mapOf(
+                    'c' to app.plead.android.designsystem.PleadBrandColor.coral,
+                    'h' to PaywallPalette.paperWhite,
+                    'd' to PaywallPalette.courtBurgundy,
+                ),
+                modifier = Modifier.align(Alignment.Center).size(PlanOrnament.heartWidth.dp, PlanOrnament.heartHeight.dp),
+            )
+        }
         PixelGlyph(PaywallSprites.sparkle, Modifier.size(7.dp).align(Alignment.TopStart).offset(x = (-9).dp, y = 2.dp))
         PixelGlyph(PaywallSprites.sparkle, Modifier.size(7.dp).align(Alignment.TopEnd).offset(x = 8.dp, y = (-4).dp))
     }
