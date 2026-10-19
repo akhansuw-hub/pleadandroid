@@ -866,6 +866,20 @@ class CaseStore private constructor(val backend: Backend?, preview: Boolean) {
     }
 
     /**
+     * Updates my own `profiles.display_name` (amendment bj). Trimmed and capped like onboarding ([DisplayName]);
+     * an empty name is refused; an unchanged one is a no-op. The partner's device picks it up through the
+     * profiles realtime channel.
+     */
+    suspend fun setDisplayName(raw: String) {
+        val me = me ?: return
+        val name = DisplayName.clean(raw)
+        if (name.isEmpty()) throw EdgeError(code = "invalid_input", message = "Enter a name.")
+        if (name == me.displayName) return
+        val backend = backend ?: run { this.me = me.copy(displayName = name); return }
+        this.me = backend.profiles.setDisplayName(me.id, name)
+    }
+
+    /**
      * My partner's name for display: their real display name once linked, else null (callers show generic
      * copy). Amendment aw: onboarding no longer asks for a name, so `profiles.partner_name_temp` is not read.
      */
@@ -897,12 +911,14 @@ class CaseStore private constructor(val backend: Backend?, preview: Boolean) {
     }
 
     suspend fun createCouple(): Couple {
-        couple?.let { return it }
+        // A linked couple, or an open invite, is kept as is. An unlinked couple whose invite has expired falls
+        // through: `create_couple` keeps that couple and mints a fresh 7-day code (amendment bi).
+        couple?.let { if (it.isLinked || !it.inviteIsExpired) return it }
         val backend = backend ?: run {
             // Demo mode: a fresh, unlinked, unpaid couple with an invite code.
             val me = me
             if (demo != null && me != null) {
-                val made = Couple(id = UUID.randomUUID(), inviteCode = "PLD4X9", inviteExpiresAt = Instant.now().plusSeconds(7 * 86_400))
+                val made = Couple(id = couple?.id ?: UUID.randomUUID(), inviteCode = "PLD4X9", inviteExpiresAt = Instant.now().plusSeconds(7 * 86_400))
                 couple = made
                 this.me = me.copy(coupleId = made.id)
                 return made
@@ -914,6 +930,17 @@ class CaseStore private constructor(val backend: Backend?, preview: Boolean) {
         me = me?.copy(coupleId = result.couple.id)
         startRealtime(result.couple.id)
         return result.couple
+    }
+
+    /**
+     * Every screen that shows the invite code calls this first (amendment bi): an unlinked couple whose invite
+     * has expired gets a fresh code from the server, so nobody shares a dead one. Failures are silent; the
+     * screen still shows the old code and its expiry.
+     */
+    suspend fun refreshInviteIfNeeded() {
+        val c = couple ?: return
+        if (c.isLinked || !c.inviteIsExpired) return
+        runCatchingNonCancel { createCouple() }
     }
 
     /**

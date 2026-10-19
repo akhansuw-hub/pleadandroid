@@ -140,6 +140,10 @@ class ProfileService(val client: SupabaseClient) {
     /** Clients may write their own profile row (RLS); updates `profiles.avatar_json`. */
     suspend fun setAvatar(id: UUID, avatar: Avatar): Profile = updateProfile(id, AvatarUpdate(avatar).body())
 
+    /** Updates my own `profiles.display_name` (amendment bj: editable from Us, same rules as onboarding). */
+    suspend fun setDisplayName(id: UUID, name: String): Profile =
+        updateProfile(id, buildJsonObject { put("display_name", name) })
+
     // MARK: Onboarding (migration 20260924000400)
 
     /** `profiles.partner_name_temp`: what I call my partner until they link (null clears it). */

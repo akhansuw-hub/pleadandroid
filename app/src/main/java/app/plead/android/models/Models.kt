@@ -456,6 +456,8 @@ data class Couple(
 ) {
     val isPremium: Boolean get() = (premiumUntil ?: Instant.MIN).isAfter(Instant.now())
     val isLinked: Boolean get() = linkedAt != null
+    /** The invite code can no longer be used (amendment bi): screens that show it ask the store to refresh first. */
+    val inviteIsExpired: Boolean get() = !inviteExpiresAt.isAfter(Instant.now())
 }
 
 @Serializable

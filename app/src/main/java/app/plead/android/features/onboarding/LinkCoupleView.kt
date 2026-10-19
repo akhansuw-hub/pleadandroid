@@ -333,6 +333,7 @@ private fun TextAction(text: String, color: androidx.compose.ui.graphics.Color, 
 private fun InviteCard(store: CaseStore, onHaveCode: () -> Unit) {
     val couple = store.couple ?: return
     val context = LocalContext.current
+    LaunchedEffect(couple.id) { store.refreshInviteIfNeeded() }
     AWCard(padding = PleadSpacing.xl) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(PleadSpacing.l)) {
             SectionLabel("Your invite code")

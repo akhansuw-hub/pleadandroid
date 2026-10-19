@@ -609,6 +609,7 @@ fun OutstandingAgreementCard(
 @Composable
 private fun SoloInviteCard(store: CaseStore) {
     val couple = store.couple ?: return
+    LaunchedEffect(couple.id) { store.refreshInviteIfNeeded() }
     val expires = remember(couple.inviteExpiresAt) {
         DateUtils.getRelativeTimeSpanString(couple.inviteExpiresAt.toEpochMilli(), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
             .toString().replaceFirstChar { it.lowercase() }

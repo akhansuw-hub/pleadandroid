@@ -1,6 +1,13 @@
 // Port of ArgueWin/Features/Us/UsView.swift.
 package app.plead.android.features.us
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.outlined.Edit
+import app.plead.android.models.EdgeError
+import app.plead.android.services.DisplayName
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -40,6 +47,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -255,6 +263,68 @@ private fun UsPortrait(avatar: Avatar, name: String, isYou: Boolean = false, cel
 private fun usPortraitTile(cell: Dp): Dp = cell * PixelAvatar.side + (cell + 3.dp) * 2
 
 /** "Edit avatar": only ever under the user's own portrait. 44 dp tall. */
+/**
+ * "Edit name" (amendment bj): a one-field dialog prefilled with the current name, under the user's own
+ * portrait next to "Edit avatar". Rules are onboarding's ([DisplayName]); Save stays disabled for an empty name.
+ */
+@Composable
+private fun EditNameLink(store: CaseStore) {
+    var open by remember { mutableStateOf(false) }
+    var draft by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    Row(
+        Modifier
+            .heightIn(min = 44.dp)
+            .clickable(role = Role.Button) { draft = store.me?.displayName ?: ""; error = null; open = true }
+            .semantics(mergeDescendants = true) { testTag = "us.editName" },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.Edit, contentDescription = null, tint = PleadColor.burgundy, modifier = Modifier.size(15.dp))   // pencil
+        Text("Edit name", style = PleadType.metadataMedium, color = PleadColor.burgundy)
+    }
+    if (open) {
+        AlertDialog(
+            onDismissRequest = { if (!saving) open = false },
+            title = { Text("Your name") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(PleadSpacing.s)) {
+                    Text("How the court and your partner see you.", style = PleadType.metadata, color = PleadColor.subtleText)
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { draft = it.take(DisplayName.LIMIT) },
+                        singleLine = true,
+                        label = { Text("Name") },
+                        isError = error != null,
+                        modifier = Modifier.fillMaxWidth().semantics { testTag = "us.editName.field" },
+                    )
+                    error?.let { Text(it, style = PleadType.metadata, color = PleadColor.burgundy) }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = DisplayName.isValid(draft) && !saving,
+                    onClick = {
+                        saving = true
+                        scope.launch {
+                            try {
+                                store.setDisplayName(draft)
+                                open = false
+                            } catch (e: Exception) {
+                                error = (e as? EdgeError)?.message ?: "Try again."
+                            }
+                            saving = false
+                        }
+                    },
+                ) { Text("Save") }
+            },
+            dismissButton = { TextButton(enabled = !saving, onClick = { open = false }) { Text("Cancel") } },
+        )
+    }
+}
+
 @Composable
 private fun EditAvatarLink(onClick: () -> Unit) {
     Row(
@@ -288,7 +358,7 @@ private fun PairCard(store: CaseStore, onEditAvatar: (() -> Unit)?) {
             Modifier.fillMaxWidth().semantics { traversalIndex = 1f },
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(PleadSpacing.s), verticalAlignment = Alignment.Top) {
-                Person(Modifier.weight(1f), store.me?.avatar ?: Avatar.default, me, isYou = true, cell, accessibilitySize, onEditAvatar)
+                Person(Modifier.weight(1f), store.me?.avatar ?: Avatar.default, me, isYou = true, cell, accessibilitySize, onEditAvatar, editName = { EditNameLink(store) })
                 Box(Modifier.height(usPortraitTile(cell)), contentAlignment = Alignment.Center) {
                     // Centred on the portraits, not on the names.
                     Icon(Icons.Filled.Favorite, contentDescription = null, tint = PleadColor.blush, modifier = Modifier.size(20.dp))
@@ -296,8 +366,11 @@ private fun PairCard(store: CaseStore, onEditAvatar: (() -> Unit)?) {
                 Person(Modifier.weight(1f), store.partner?.avatar ?: Avatar.default, partner, isYou = false, cell, accessibilitySize, onEditAvatar)
             }
             // Accessibility sizes: the control gets its own full-width row under the portraits.
-            if (accessibilitySize && onEditAvatar != null) {
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { EditAvatarLink(onEditAvatar) }
+            if (accessibilitySize) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (onEditAvatar != null) EditAvatarLink(onEditAvatar)
+                    EditNameLink(store)
+                }
             }
         }
         Column(
@@ -328,6 +401,7 @@ private fun Person(
     cell: Dp,
     accessibilitySize: Boolean,
     onEditAvatar: (() -> Unit)?,
+    editName: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(PleadSpacing.xs)) {
         Box(Modifier.padding(bottom = PleadSpacing.s)) { UsPortrait(avatar, name, isYou, cell) }
@@ -343,7 +417,10 @@ private fun Person(
         )
         if (!accessibilitySize) {
             if (isYou) {
-                if (onEditAvatar != null) EditAvatarLink(onEditAvatar) else Spacer(Modifier.height(44.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (onEditAvatar != null) EditAvatarLink(onEditAvatar) else Spacer(Modifier.height(44.dp))
+                    editName?.invoke()
+                }
             } else {
                 Box(Modifier.heightIn(min = 44.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
                     Text("Partner", style = PleadType.metadata, color = PleadColor.subtleText)
@@ -377,10 +454,12 @@ private fun InviteCard(store: CaseStore, router: AppRouter, onEditAvatar: (() ->
             Column {
                 Text(me, style = PleadType.bodyStrong, color = PleadColor.cocoa, modifier = Modifier.clearAndSetSemantics { })
                 if (onEditAvatar != null) EditAvatarLink(onEditAvatar)
+                EditNameLink(store)
             }
             Spacer(Modifier.weight(1f))
         }
         store.couple?.let { couple ->
+            LaunchedEffect(couple.id) { store.refreshInviteIfNeeded() }
             Row(
                 Modifier
                     .fillMaxWidth()

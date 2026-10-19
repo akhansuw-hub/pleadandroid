@@ -42,8 +42,8 @@ android {
         applicationId = "app.plead.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = projectSetting("CURRENT_PROJECT_VERSION", "10").toInt()
-        versionName = projectSetting("MARKETING_VERSION", "1.0.0")
+        versionCode = projectSetting("CURRENT_PROJECT_VERSION", "11").toInt()
+        versionName = projectSetting("MARKETING_VERSION", "1.0.1")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "SUPABASE_URL", supabaseUrl.quoted())
